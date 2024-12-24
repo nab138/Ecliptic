@@ -1,0 +1,27 @@
+{
+  "formatVersion": 1,
+  "id": "${mod_id}",
+  "version": "${mod_version}",
+  "name": "${mod_name}",
+  "description": "${mod_desc}",
+  "authors": [
+    "nab138"
+  ],
+  "entrypoints": {
+    "init": [
+      "me.nabdev.ecliptic.Ecliptic"
+    ],
+    "tooltip": [
+      "me.nabdev.ecliptic.TooltipFactory"
+    ]
+  },
+  "mixins": [],
+  "depends": {
+    "cosmic-reach": ">=0.3.12",
+    "puzzle-loader": ">=2.1.13"
+  },
+  "accessTransformers": [ "ecliptic.manipulator" ],
+  "meta": {
+    "icon": "ecliptic:icons/icon.png"
+  }
+}
