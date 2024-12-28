@@ -28,7 +28,7 @@ public class Shaper implements IModItem {
     public enum Mode {
         FILL(2, true),
         REPLACE(2, true),
-        MOVE(2, false),
+        //MOVE(2, false),
         COPY(2, false),
         PASTE(1, false);
 
@@ -61,14 +61,8 @@ public class Shaper implements IModItem {
         public Action(Mode mode, BlockState material, BoundingBox boundingBox, BlockState[][][] clipboard){
             this.mode = mode;
             this.material = material;
-            if(mode != Mode.PASTE) {
-                this.boundingBox = new BoundingBox(boundingBox);
-            } else{
-                this.clipboard = clipboard;
-                Vector3 pos1v = blockPositionToVector3(pos1);
-                Vector3 pos2v = new Vector3(clipboard.length, clipboard[0].length, clipboard[0][0].length).add(pos1v).sub(1, 1, 1);
-                this.boundingBox = new BoundingBox(pos1v, pos2v);
-            }
+            this.boundingBox = new BoundingBox(boundingBox);
+            if(mode == Mode.PASTE) this.clipboard = clipboard;
             if(mode == Mode.REPLACE){
                 replaceBlock = BlockSelectionUtil.getBlockLookingAt();
                 if(replaceBlock == null){
@@ -81,7 +75,7 @@ public class Shaper implements IModItem {
             switch (mode) {
                 case FILL:
                     oldBlocks = fill(zone, material, boundingBox, null);
-                    if(verbose) sendMsg("Filled with " + selectedMaterial.getName());
+                    if(verbose) sendMsg("Filled " + (boundingBox.getWidth() + 1) * (boundingBox.getHeight() + 1) * (boundingBox.getDepth() + 1) + " block(s) with " + selectedMaterial.getName());
                     break;
                 case REPLACE:
                     oldBlocks = fill(zone, material, boundingBox, block -> block.getSaveKey().equals(replaceBlock.getSaveKey()));
@@ -94,7 +88,7 @@ public class Shaper implements IModItem {
                     }
                     oldBlocks = fill(zone, selectedMaterial, boundingBox, (BlockState b) -> false);
                     fill(zone, this.clipboard, boundingBox);
-                    sendMsg("Pasted " + boundingBox.getWidth() * boundingBox.getHeight() * boundingBox.getDepth() + " block(s) from clipboard");
+                    sendMsg("Pasted " + (boundingBox.getWidth() + 1) * (boundingBox.getHeight() + 1) * (boundingBox.getDepth() + 1) + " block(s) from clipboard");
                     break;
                 default:
                     sendMsg("Not implemented: " + mode);
@@ -121,6 +115,7 @@ public class Shaper implements IModItem {
     public BoundingBox visualBoundingBox;
     public BoundingBox boundingBox;
     public BlockState selectedMaterial = null;
+    public static boolean ctrlPressed = false;
 
     private final static float eps = 0.01f;
 
@@ -134,8 +129,8 @@ public class Shaper implements IModItem {
 
     @Override
     public void use(ItemSlot slot, Player player, boolean leftClick) {
-        if(leftClick){
-            if(player.isSneakIntended) {
+        if(!leftClick){
+            if(ctrlPressed) {
                 BlockState block = BlockSelectionUtil.getBlockLookingAt();
                 if (block != null) {
                     selectedMaterial = block;
@@ -146,10 +141,10 @@ public class Shaper implements IModItem {
                 }
                 return;
             }
-            select();
+            select(player.isSneakIntended);
             return;
         }
-        if(player.isSneakIntended){
+        if(!player.isSneakIntended){
             mode = Mode.values()[(mode.ordinal() + 1) % Mode.values().length];
             updateBoundingBox();
             sendMsg("Mode set to " + mode);
@@ -166,6 +161,10 @@ public class Shaper implements IModItem {
         if (mode == Mode.COPY) {
             clipboard = fill(player.getZone(), selectedMaterial, boundingBox, (BlockState b) -> false);
             sendMsg("Copied " + (int) ((boundingBox.getWidth() + 1) * (boundingBox.getHeight() + 1) * (boundingBox.getDepth() + 1)) + " block(s) to clipboard");
+            return;
+        }
+        if(mode == Mode.PASTE && clipboard == null){
+            sendMsg("Nothing in clipboard to paste");
             return;
         }
         Action actionToApply = new Action(mode, selectedMaterial, boundingBox, clipboard);
@@ -215,27 +214,34 @@ public class Shaper implements IModItem {
         return oldBlocks;
     }
 
-    private void select(){
+    private void select(boolean second){
         BlockPosition pos = BlockSelectionUtil.getBlockPositionLookingAt();
         if(pos == null) {
             return;
         }
-        if(pos1 == null || pos2 != null) {
-            pos1 = pos.copy();
-            pos2 = null;
-            updateBoundingBox();
-            sendMsg("Pos 1 set to " + blockPosToString(pos1));
-        } else {
-            pos2 = pos.copy();
-            updateBoundingBox();
-            sendMsg("Pos 2 set to " + blockPosToString(pos2));
+        if(mode == Mode.PASTE && second){
+            sendMsg("Cannot set second position in paste mode");
+            return;
         }
+        if(second) pos2 = pos.copy();
+        else pos1 = pos.copy();
+        updateBoundingBox();
+        sendMsg("Pos " + (second ? 2 : 1) + " set to " + blockPosToString(pos1));
     }
 
     private void updateBoundingBox(){
         if(pos1 == null || (pos2 == null && mode.getRequiredSelections() != 1)){
             boundingBox = null;
             visualBoundingBox = null;
+            return;
+        }
+        if(mode == Mode.PASTE && this.clipboard != null){
+            Vector3 pos1v = blockPositionToVector3(pos1);
+            Vector3 pos2v = new Vector3(clipboard.length, clipboard[0].length, clipboard[0][0].length).add(pos1v).sub(1, 1, 1);
+            Vector3 min = new Vector3(Math.min(pos1v.x, pos2v.x), Math.min(pos1v.y, pos2v.y), Math.min(pos1v.z, pos2v.z));
+            Vector3 max = new Vector3(Math.max(pos1v.x, pos2v.x), Math.max(pos1v.y, pos2v.y), Math.max(pos1v.z, pos2v.z));
+            this.boundingBox = new BoundingBox(min, max);
+            visualBoundingBox = new BoundingBox(min.cpy().add(-eps, -eps, -eps), max.cpy().add(1 + eps, 1 + eps, 1 + eps));
             return;
         }
         if(mode.getRequiredSelections() == 1){

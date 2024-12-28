@@ -4,7 +4,8 @@
   "package": "me.nabdev.ecliptic.clientmixins",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
-    "InGameMixin"
+    "InGameMixin",
+    "PlayerControllerMixin"
   ],
   "client": [],
   "server": [],
