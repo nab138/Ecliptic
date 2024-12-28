@@ -15,14 +15,24 @@ import static me.nabdev.ecliptic.utils.ChatHelper.sendMsg;
 
 public class TemporalManipulator implements IModItem {
     DataTagManifest tagManifest = new DataTagManifest();
-    public static Identifier id = Identifier.of(Constants.MOD_ID, "temporal_manipulator");
+    public final static Identifier id = Identifier.of(Constants.MOD_ID, "temporal_manipulator");
+    private final static int MAX_UNDO_REDO = 10;
 
     public TemporalManipulator() {
         addTexture(IModItem.MODEL_2_5D_ITEM, Identifier.of(Constants.MOD_ID, "temporal_manipulator.png"));
     }
 
-    public final static Stack<Shaper.Action> undoStack = new Stack<>();
-    public final static Stack<Shaper.Action> redoStack = new Stack<>();
+    private final static Stack<SpatialManipulator.Action> undoStack = new Stack<>();
+    private final static Stack<SpatialManipulator.Action> redoStack = new Stack<>();
+
+    public static void addToUndoStack(SpatialManipulator.Action action){
+        undoStack.push(action);
+
+
+        if(undoStack.size() > MAX_UNDO_REDO) //noinspection SequencedCollectionMethodCanBeUsed
+            undoStack.remove(0);
+        redoStack.clear();
+    }
 
     @Override
     public void use(ItemSlot slot, Player player, boolean leftClick) {
@@ -31,7 +41,7 @@ public class TemporalManipulator implements IModItem {
                 sendMsg("Nothing to undo");
                 return;
             }
-            Shaper.Action action = undoStack.pop();
+            SpatialManipulator.Action action = undoStack.pop();
             action.undo(player.getZone());
             redoStack.push(action);
             sendMsg("Undid " + action.mode);
@@ -43,7 +53,7 @@ public class TemporalManipulator implements IModItem {
             sendMsg("Nothing to redo");
             return;
         }
-        Shaper.Action actionToRedo = redoStack.pop();
+        SpatialManipulator.Action actionToRedo = redoStack.pop();
         actionToRedo.apply(player.getZone());
         undoStack.push(actionToRedo);
         sendMsg("Redid " + actionToRedo.mode);

@@ -3,27 +3,34 @@ package me.nabdev.ecliptic.items;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
 import com.github.puzzle.game.items.IModItem;
+import com.github.puzzle.game.items.data.DataTag;
 import com.github.puzzle.game.items.data.DataTagManifest;
+import com.github.puzzle.game.items.data.attributes.IntDataAttribute;
+import com.github.puzzle.game.items.data.attributes.StringDataAttribute;
 import com.github.puzzle.game.util.BlockSelectionUtil;
 import com.github.puzzle.game.util.BlockUtil;
+import com.github.puzzle.game.util.DataTagUtil;
 import finalforeach.cosmicreach.blocks.Block;
 import finalforeach.cosmicreach.blocks.BlockPosition;
 import finalforeach.cosmicreach.blocks.BlockState;
+import finalforeach.cosmicreach.blocks.MissingBlockStateResult;
 import finalforeach.cosmicreach.entities.player.Player;
 import finalforeach.cosmicreach.items.ItemSlot;
 import finalforeach.cosmicreach.items.ItemStack;
 import finalforeach.cosmicreach.util.Identifier;
 import finalforeach.cosmicreach.world.Zone;
 import me.nabdev.ecliptic.Constants;
+import me.nabdev.ecliptic.utils.Vec3Int;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Function;
 
 import static me.nabdev.ecliptic.utils.ChatHelper.blockPosToString;
 import static me.nabdev.ecliptic.utils.ChatHelper.sendMsg;
 
-public class Shaper implements IModItem {
+public class SpatialManipulator implements IModItem {
     DataTagManifest tagManifest = new DataTagManifest();
-    public static Identifier id = Identifier.of(Constants.MOD_ID, "shaper");
+    public final static Identifier id = Identifier.of(Constants.MOD_ID, "spatial_manipulator");
 
     public enum Mode {
         FILL(2, true),
@@ -75,18 +82,18 @@ public class Shaper implements IModItem {
             switch (mode) {
                 case FILL:
                     oldBlocks = fill(zone, material, boundingBox, null);
-                    if(verbose) sendMsg("Filled " + (boundingBox.getWidth() + 1) * (boundingBox.getHeight() + 1) * (boundingBox.getDepth() + 1) + " block(s) with " + selectedMaterial.getName());
+                    if(verbose) sendMsg("Filled " + (boundingBox.getWidth() + 1) * (boundingBox.getHeight() + 1) * (boundingBox.getDepth() + 1) + " block(s) with " + material.getName());
                     break;
                 case REPLACE:
                     oldBlocks = fill(zone, material, boundingBox, block -> block.getSaveKey().equals(replaceBlock.getSaveKey()));
-                    if(verbose) sendMsg("Replaced " + replaceBlock.getName() + " with " + selectedMaterial.getName());
+                    if(verbose) sendMsg("Replaced " + replaceBlock.getName() + " with " + material.getName());
                     break;
                 case PASTE:
                     if(this.clipboard == null){
                         sendMsg("Nothing in clipboard to paste");
                         return;
                     }
-                    oldBlocks = fill(zone, selectedMaterial, boundingBox, (BlockState b) -> false);
+                    oldBlocks = fill(zone, material, boundingBox, (BlockState b) -> false);
                     fill(zone, this.clipboard, boundingBox);
                     sendMsg("Pasted " + (boundingBox.getWidth() + 1) * (boundingBox.getHeight() + 1) * (boundingBox.getDepth() + 1) + " block(s) from clipboard");
                     break;
@@ -110,52 +117,51 @@ public class Shaper implements IModItem {
         }
     }
 
-    public BlockPosition pos1;
-    public BlockPosition pos2;
-    public BoundingBox visualBoundingBox;
-    public BoundingBox boundingBox;
-    public BlockState selectedMaterial = null;
     public static boolean ctrlPressed = false;
 
     private final static float eps = 0.01f;
 
-    Mode mode = Mode.FILL;
-
     private BlockState[][][] clipboard;
 
-    public Shaper() {
-        addTexture(IModItem.MODEL_2_5D_ITEM, Identifier.of(Constants.MOD_ID, "shaper.png"));
+    public SpatialManipulator() {
+        addTexture(IModItem.MODEL_2_5D_ITEM, Identifier.of(Constants.MOD_ID, "spatial_manipulator.png"));
     }
 
     @Override
     public void use(ItemSlot slot, Player player, boolean leftClick) {
+        Mode mode = getMode(slot.itemStack);
+        BlockState selectedMaterial = getSelectedMaterial(slot.itemStack);
+        BlockPosition pos1 = getPosition(player.getZone(), slot.itemStack, "pos1");
+        BlockPosition pos2 = getPosition(player.getZone(), slot.itemStack, "pos2");
+        BoundingBox boundingBox = getBoundingBox(mode, pos1, pos2, false);
+
         if(!leftClick){
             if(ctrlPressed) {
                 BlockState block = BlockSelectionUtil.getBlockLookingAt();
                 if (block != null) {
-                    selectedMaterial = block;
+                    setSelectedMaterial(slot.itemStack, block);
                     sendMsg("Selected material: " + block.getName());
                 } else {
-                    selectedMaterial = Block.AIR.getDefaultBlockState();
+                    setSelectedMaterial(slot.itemStack, Block.AIR.getDefaultBlockState());
                     sendMsg("Selected material: Air");
                 }
                 return;
             }
-            select(player.isSneakIntended);
+            select(player.isSneakIntended, mode, slot.itemStack);
             return;
         }
         if(!player.isSneakIntended){
-            mode = Mode.values()[(mode.ordinal() + 1) % Mode.values().length];
-            updateBoundingBox();
+            setMode(slot.itemStack, Mode.values()[(mode.ordinal() + 1) % Mode.values().length]);
+            mode = getMode(slot.itemStack);
             sendMsg("Mode set to " + mode);
             return;
         }
         if((mode.getRequiredSelections() == 1 && pos1 == null) || (mode.getRequiredSelections() == 2 && (pos1 == null || pos2 == null))){
-            sendMsg("Please select " + mode.getRequiredSelections() + " position" + (mode.getRequiredSelections() == 1 ? "" : "s") + " before using the shaper in mode " + mode);
+            sendMsg("Please select " + mode.getRequiredSelections() + " position" + (mode.getRequiredSelections() == 1 ? "" : "s") + " before using the spatial manipulator in mode " + mode);
             return;
         }
         if(mode.requiresMaterial() && selectedMaterial == null){
-            sendMsg("Please select a material before using the shaper in mode " + mode);
+            sendMsg("Please select a material before using the spatial manipulator in mode " + mode);
             return;
         }
         if (mode == Mode.COPY) {
@@ -169,8 +175,7 @@ public class Shaper implements IModItem {
         }
         Action actionToApply = new Action(mode, selectedMaterial, boundingBox, clipboard);
         actionToApply.apply(player.getZone(), true);
-        TemporalManipulator.undoStack.push(actionToApply);
-        TemporalManipulator.redoStack.clear();
+        TemporalManipulator.addToUndoStack(actionToApply);
     }
 
     private void fill(Zone zone, BlockState[][][] blocks, BoundingBox boundingBox) {
@@ -214,7 +219,7 @@ public class Shaper implements IModItem {
         return oldBlocks;
     }
 
-    private void select(boolean second){
+    private void select(boolean second, Mode mode, ItemStack stack){
         BlockPosition pos = BlockSelectionUtil.getBlockPositionLookingAt();
         if(pos == null) {
             return;
@@ -223,40 +228,44 @@ public class Shaper implements IModItem {
             sendMsg("Cannot set second position in paste mode");
             return;
         }
-        if(second) pos2 = pos.copy();
-        else pos1 = pos.copy();
-        updateBoundingBox();
-        sendMsg("Pos " + (second ? 2 : 1) + " set to " + blockPosToString(pos1));
+        if(second) setPosition(stack, "pos2", pos.copy());
+        else setPosition(stack, "pos1", pos.copy());
+
+        sendMsg("Pos " + (second ? 2 : 1) + " set to " + blockPosToString(pos));
     }
 
-    private void updateBoundingBox(){
+    private BoundingBox getBoundingBox(Mode mode, BlockPosition pos1, BlockPosition pos2, boolean visual){
         if(pos1 == null || (pos2 == null && mode.getRequiredSelections() != 1)){
-            boundingBox = null;
-            visualBoundingBox = null;
-            return;
+            return null;
         }
         if(mode == Mode.PASTE && this.clipboard != null){
             Vector3 pos1v = blockPositionToVector3(pos1);
             Vector3 pos2v = new Vector3(clipboard.length, clipboard[0].length, clipboard[0][0].length).add(pos1v).sub(1, 1, 1);
-            Vector3 min = new Vector3(Math.min(pos1v.x, pos2v.x), Math.min(pos1v.y, pos2v.y), Math.min(pos1v.z, pos2v.z));
-            Vector3 max = new Vector3(Math.max(pos1v.x, pos2v.x), Math.max(pos1v.y, pos2v.y), Math.max(pos1v.z, pos2v.z));
-            this.boundingBox = new BoundingBox(min, max);
-            visualBoundingBox = new BoundingBox(min.cpy().add(-eps, -eps, -eps), max.cpy().add(1 + eps, 1 + eps, 1 + eps));
-            return;
+            return getBoundingBoxFromCorners(visual, pos1v, pos2v);
         }
         if(mode.getRequiredSelections() == 1){
-            Vector3 posv = blockPositionToVector3(pos1);
-            boundingBox = new BoundingBox(posv, posv);
-            visualBoundingBox = new BoundingBox(posv.cpy().add(-eps, -eps, -eps), posv.cpy().add(1 + eps, 1 + eps, 1 + eps));
-            return;
+            Vector3 posV = blockPositionToVector3(pos1);
+            if(visual) return new BoundingBox(posV.cpy().add(-eps, -eps, -eps), posV.cpy().add(1 + eps, 1 + eps, 1 + eps));
+            return new BoundingBox(posV, posV);
         }
         Vector3 pos1v = blockPositionToVector3(pos1);
         Vector3 pos2v = blockPositionToVector3(pos2);
+        return getBoundingBoxFromCorners(visual, pos1v, pos2v);
+    }
+
+    public BoundingBox getVisualBoundingBox(ItemStack stack, Zone zone){
+        Mode mode = getMode(stack);
+        BlockPosition pos1 = getPosition(zone, stack, "pos1");
+        BlockPosition pos2 = getPosition(zone, stack, "pos2");
+        return getBoundingBox(mode, pos1, pos2, true);
+    }
+
+    @NotNull
+    private BoundingBox getBoundingBoxFromCorners(boolean visual, Vector3 pos1v, Vector3 pos2v) {
         Vector3 min = new Vector3(Math.min(pos1v.x, pos2v.x), Math.min(pos1v.y, pos2v.y), Math.min(pos1v.z, pos2v.z));
         Vector3 max = new Vector3(Math.max(pos1v.x, pos2v.x), Math.max(pos1v.y, pos2v.y), Math.max(pos1v.z, pos2v.z));
-        boundingBox = new BoundingBox(min, max);
-        visualBoundingBox = new BoundingBox(min.cpy().add(-eps, -eps, -eps), max.cpy().add(1 + eps, 1 + eps, 1 + eps));
-
+        if(visual) return new BoundingBox(min.cpy().add(-eps, -eps, -eps), max.cpy().add(1 + eps, 1 + eps, 1 + eps));
+        return new BoundingBox(min, max);
     }
 
     public static Vector3 blockPositionToVector3(BlockPosition pos) {
@@ -285,7 +294,7 @@ public class Shaper implements IModItem {
 
     @Override
     public String getName() {
-        return "Shaper";
+        return "Spatial Manipulator";
     }
 
     @Override
@@ -306,5 +315,59 @@ public class Shaper implements IModItem {
     @Override
     public boolean canTargetBlockForBreaking(BlockState blockState) {
         return false;
+    }
+
+    Mode getMode(ItemStack stack){
+        DataTagManifest manifest = DataTagUtil.getManifestFromStack(stack);
+        if(manifest == null) return Mode.FILL;
+        if(!manifest.hasTag("mode")) return Mode.FILL;
+        return Mode.valueOf((String) manifest.getTag("mode").getValue());
+    }
+
+    private void setMode(ItemStack stack, Mode mode){
+        DataTagManifest manifest = DataTagUtil.getManifestFromStack(stack);
+        if(manifest == null) manifest = new DataTagManifest();
+        manifest.addTag(new DataTag<>("mode", new StringDataAttribute(mode.toString())));
+    }
+
+    BlockState getSelectedMaterial(ItemStack stack){
+        DataTagManifest manifest = DataTagUtil.getManifestFromStack(stack);
+        if(manifest == null) return null;
+        if(!manifest.hasTag("selectedMaterial")) return null;
+        return BlockState.getInstance((String) manifest.getTag("selectedMaterial").getValue(), MissingBlockStateResult.MISSING_OBJECT);
+    }
+
+    private void setSelectedMaterial(ItemStack stack, BlockState material){
+        DataTagManifest manifest = DataTagUtil.getManifestFromStack(stack);
+        if(manifest == null) manifest = new DataTagManifest();
+        manifest.addTag(new DataTag<>("selectedMaterial", new StringDataAttribute(material.getSaveKey())));
+    }
+
+    Vec3Int getPosition(ItemStack stack, String pos){
+        DataTagManifest manifest = DataTagUtil.getManifestFromStack(stack);
+        if (manifest == null) return null;
+        if(!hasIntProperty(stack, pos + "X")) return null;
+        if(!hasIntProperty(stack, pos + "Y")) return null;
+        if(!hasIntProperty(stack, pos + "Z")) return null;
+
+        int x = getIntProperty(stack, pos + "X", -1);
+        int y = getIntProperty(stack, pos + "Y", -1);
+        int z = getIntProperty(stack, pos + "Z", -1);
+
+        return new Vec3Int(x, y, z);
+    }
+
+    BlockPosition getPosition(Zone zone, ItemStack stack, String pos){
+        Vec3Int posv = getPosition(stack, pos);
+        if(posv == null) return null;
+        return BlockPosition.ofGlobal(zone, posv.x, posv.y, posv.z);
+    }
+
+    private void setPosition(ItemStack stack, String pos, BlockPosition position) {
+        DataTagManifest manifest = DataTagUtil.getManifestFromStack(stack);
+        if (manifest == null) manifest = new DataTagManifest();
+        manifest.addTag(new DataTag<>(pos + "X", new IntDataAttribute(position.getGlobalX())));
+        manifest.addTag(new DataTag<>(pos + "Y", new IntDataAttribute(position.getGlobalY())));
+        manifest.addTag(new DataTag<>(pos + "Z", new IntDataAttribute(position.getGlobalZ())));
     }
 }

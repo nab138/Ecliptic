@@ -1,32 +1,36 @@
 package me.nabdev.ecliptic.items;
 
+import finalforeach.cosmicreach.blocks.BlockState;
 import finalforeach.cosmicreach.items.ItemStack;
 import me.nabdev.cosmictooltips.api.ITooltipItem;
-
-import static me.nabdev.ecliptic.utils.ChatHelper.blockPosToString;
+import me.nabdev.ecliptic.utils.Vec3Int;
 
 public class ShaperTooltips implements ITooltipItem {
     @Override
     public String getItemID() {
-        return Shaper.id.toString();
+        return SpatialManipulator.id.toString();
     }
 
     @Override
     public String getTooltipText(ItemStack itemStack) {
-        if (itemStack.getItem() instanceof Shaper s) {
+        if (itemStack.getItem() instanceof SpatialManipulator s) {
+            BlockState selectedMaterial = s.getSelectedMaterial(itemStack);
+            Vec3Int pos1 = s.getPosition(itemStack, "pos1");
+            Vec3Int pos2 = s.getPosition(itemStack, "pos2");
+
             StringBuilder builder = new StringBuilder();
             builder.append("Current mode: ");
-            builder.append(s.mode);
+            builder.append(s.getMode(itemStack));
             builder.append("\nSelected material: ");
-            builder.append(s.selectedMaterial == null ? "N/A" : s.selectedMaterial.getName());
+            builder.append(selectedMaterial == null ? "N/A" : selectedMaterial.getName());
             builder.append("\n");
-            if (s.pos1 == null) {
+            if (pos1 == null && pos2 == null) {
                 builder.append("No positions set");
             } else {
                 builder.append("Pos 1: ");
-                builder.append(blockPosToString(s.pos1));
+                builder.append(pos1 == null ? "N/A" : pos1);
                 builder.append("\nPos 2: ");
-                builder.append(s.pos2 == null ? "N/A" : blockPosToString(s.pos2));
+                builder.append(pos2 == null ? "N/A" : pos2);
             }
             return builder.toString();
         }

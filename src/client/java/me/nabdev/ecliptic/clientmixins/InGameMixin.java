@@ -4,10 +4,11 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.collision.BoundingBox;
+import finalforeach.cosmicreach.entities.player.Player;
 import finalforeach.cosmicreach.gamestates.InGame;
 import finalforeach.cosmicreach.items.ItemStack;
 import finalforeach.cosmicreach.ui.UI;
-import me.nabdev.ecliptic.items.Shaper;
+import me.nabdev.ecliptic.items.SpatialManipulator;
 import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -20,13 +21,15 @@ public abstract class InGameMixin {
 
     @Shadow private static PerspectiveCamera rawWorldCamera;
 
+    @Shadow private static Player localPlayer;
+
     @Inject(method = "render", at= @At(value = "INVOKE", target = "Lfinalforeach/cosmicreach/ui/UI;render()V"))
     public void drawShaperBoundingBox(CallbackInfo ci) {
         ItemStack selected = UI.hotbar.getSelectedItemStack();
         if(selected == null) return;
-        if(!(selected.getItem() instanceof Shaper shaper)) return;
-        if(shaper.visualBoundingBox == null) return;
-        BoundingBox bb = shaper.visualBoundingBox;
+        if(!(selected.getItem() instanceof SpatialManipulator manipulator)) return;
+        BoundingBox bb = manipulator.getVisualBoundingBox(selected, localPlayer.getZone());
+        if(bb == null) return;
         if (sr == null) {
             sr = new ShapeRenderer();
         }
