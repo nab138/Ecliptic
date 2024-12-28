@@ -15,7 +15,12 @@
       "me.nabdev.ecliptic.TooltipFactory"
     ]
   },
-  "mixins": [],
+  "mixins": [
+    {
+      "config": "ecliptic.client.mixins.json",
+      "environment": "client"
+    }
+  ],
   "depends": {
     "cosmic-reach": ">=0.3.12",
     "puzzle-loader": ">=2.1.13"
