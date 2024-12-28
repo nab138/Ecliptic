@@ -6,6 +6,7 @@ import com.github.puzzle.game.items.IModItem;
 import com.github.puzzle.game.items.data.DataTagManifest;
 import com.github.puzzle.game.util.BlockSelectionUtil;
 import com.github.puzzle.game.util.BlockUtil;
+import finalforeach.cosmicreach.blocks.Block;
 import finalforeach.cosmicreach.blocks.BlockPosition;
 import finalforeach.cosmicreach.blocks.BlockState;
 import finalforeach.cosmicreach.entities.player.Player;
@@ -15,13 +16,18 @@ import finalforeach.cosmicreach.util.Identifier;
 import finalforeach.cosmicreach.world.Zone;
 import me.nabdev.ecliptic.Constants;
 
+import java.util.function.Function;
+
 import static me.nabdev.ecliptic.utils.ChatHelper.blockPosToString;
 import static me.nabdev.ecliptic.utils.ChatHelper.sendMsg;
 
 public class Shaper implements IModItem {
+    DataTagManifest tagManifest = new DataTagManifest();
+    public static Identifier id = Identifier.of(Constants.MOD_ID, "shaper");
+
     public enum Mode {
-        SELECT(-1, false),
         FILL(2, true),
+        REPLACE(2, true),
         MOVE(2, false),
         COPY(2, false),
         PASTE(1, false);
@@ -43,8 +49,72 @@ public class Shaper implements IModItem {
         }
     }
 
-    DataTagManifest tagManifest = new DataTagManifest();
-    public static Identifier id = Identifier.of(Constants.MOD_ID, "shaper");
+    public class Action{
+        public final Mode mode;
+        public final BlockState material;
+        public final BoundingBox boundingBox;
+        // store the old blocks for undo
+        public BlockState[][][] oldBlocks;
+        public BlockState replaceBlock;
+        public BlockState[][][] clipboard;
+
+        public Action(Mode mode, BlockState material, BoundingBox boundingBox, BlockState[][][] clipboard){
+            this.mode = mode;
+            this.material = material;
+            if(mode != Mode.PASTE) {
+                this.boundingBox = new BoundingBox(boundingBox);
+            } else{
+                this.clipboard = clipboard;
+                Vector3 pos1v = blockPositionToVector3(pos1);
+                Vector3 pos2v = new Vector3(clipboard.length, clipboard[0].length, clipboard[0][0].length).add(pos1v).sub(1, 1, 1);
+                this.boundingBox = new BoundingBox(pos1v, pos2v);
+            }
+            if(mode == Mode.REPLACE){
+                replaceBlock = BlockSelectionUtil.getBlockLookingAt();
+                if(replaceBlock == null){
+                    replaceBlock = Block.AIR.getDefaultBlockState();
+                }
+            }
+        }
+
+        public void apply(Zone zone, boolean verbose){
+            switch (mode) {
+                case FILL:
+                    oldBlocks = fill(zone, material, boundingBox, null);
+                    if(verbose) sendMsg("Filled with " + selectedMaterial.getName());
+                    break;
+                case REPLACE:
+                    oldBlocks = fill(zone, material, boundingBox, block -> block.getSaveKey().equals(replaceBlock.getSaveKey()));
+                    if(verbose) sendMsg("Replaced " + replaceBlock.getName() + " with " + selectedMaterial.getName());
+                    break;
+                case PASTE:
+                    if(this.clipboard == null){
+                        sendMsg("Nothing in clipboard to paste");
+                        return;
+                    }
+                    oldBlocks = fill(zone, selectedMaterial, boundingBox, (BlockState b) -> false);
+                    fill(zone, this.clipboard, boundingBox);
+                    sendMsg("Pasted " + boundingBox.getWidth() * boundingBox.getHeight() * boundingBox.getDepth() + " block(s) from clipboard");
+                    break;
+                default:
+                    sendMsg("Not implemented: " + mode);
+            }
+        }
+
+        public void apply(Zone zone){
+            apply(zone, false);
+        }
+
+        public void undo (Zone zone){
+            switch (mode) {
+                case FILL, REPLACE, PASTE:
+                    fill(zone, oldBlocks, boundingBox);
+                    break;
+                default:
+                    sendMsg("Undo not implemented for mode " + mode);
+            }
+        }
+    }
 
     public BlockPosition pos1;
     public BlockPosition pos2;
@@ -54,7 +124,9 @@ public class Shaper implements IModItem {
 
     private final static float eps = 0.01f;
 
-    Mode mode = Mode.SELECT;
+    Mode mode = Mode.FILL;
+
+    private BlockState[][][] clipboard;
 
     public Shaper() {
         addTexture(IModItem.MODEL_2_5D_ITEM, Identifier.of(Constants.MOD_ID, "shaper.png"));
@@ -63,11 +135,18 @@ public class Shaper implements IModItem {
     @Override
     public void use(ItemSlot slot, Player player, boolean leftClick) {
         if(leftClick){
-            BlockState block = BlockSelectionUtil.getBlockLookingAt();
-            if (block != null) {
-                selectedMaterial = block;
-                sendMsg("Selected material: " + block.getName());
+            if(player.isSneakIntended) {
+                BlockState block = BlockSelectionUtil.getBlockLookingAt();
+                if (block != null) {
+                    selectedMaterial = block;
+                    sendMsg("Selected material: " + block.getName());
+                } else {
+                    selectedMaterial = Block.AIR.getDefaultBlockState();
+                    sendMsg("Selected material: Air");
+                }
+                return;
             }
+            select();
             return;
         }
         if(player.isSneakIntended){
@@ -84,25 +163,56 @@ public class Shaper implements IModItem {
             sendMsg("Please select a material before using the shaper in mode " + mode);
             return;
         }
-        switch (mode) {
-            case SELECT:
-                select();
-                break;
-            case FILL:
-                fill(player.getZone());
-                break;
+        if (mode == Mode.COPY) {
+            clipboard = fill(player.getZone(), selectedMaterial, boundingBox, (BlockState b) -> false);
+            sendMsg("Copied " + (int) ((boundingBox.getWidth() + 1) * (boundingBox.getHeight() + 1) * (boundingBox.getDepth() + 1)) + " block(s) to clipboard");
+            return;
         }
+        Action actionToApply = new Action(mode, selectedMaterial, boundingBox, clipboard);
+        actionToApply.apply(player.getZone(), true);
+        TemporalManipulator.undoStack.push(actionToApply);
+        TemporalManipulator.redoStack.clear();
     }
 
-    private void fill(Zone zone){
-        for (int x = (int)boundingBox.min.x; x <= boundingBox.max.x; x++) {
-            for (int y = (int)boundingBox.min.y; y <= boundingBox.max.y; y++) {
-                for (int z = (int)boundingBox.min.z; z <= boundingBox.max.z; z++) {
-                    BlockUtil.setBlockAt(zone, selectedMaterial, x, y, z);
+    private void fill(Zone zone, BlockState[][][] blocks, BoundingBox boundingBox) {
+        int minX = (int) Math.floor(boundingBox.min.x);
+        int minY = (int) Math.floor(boundingBox.min.y);
+        int minZ = (int) Math.floor(boundingBox.min.z);
+        int maxX = (int) Math.ceil(boundingBox.max.x);
+        int maxY = (int) Math.ceil(boundingBox.max.y);
+        int maxZ = (int) Math.ceil(boundingBox.max.z);
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    BlockState block = blocks[x - minX][y - minY][z - minZ];
+                    if(block == null){
+                        block = Block.AIR.getDefaultBlockState();
+                    }
+                    BlockUtil.setBlockAt(zone, block, x, y, z);
                 }
             }
         }
-        sendMsg("Filled with " + selectedMaterial.getName());
+    }
+
+    private BlockState[][][] fill(Zone zone, BlockState block, BoundingBox boundingBox, Function<BlockState, Boolean> filter) {
+        int minX = (int) Math.floor(boundingBox.min.x);
+        int minY = (int) Math.floor(boundingBox.min.y);
+        int minZ = (int) Math.floor(boundingBox.min.z);
+        int maxX = (int) Math.ceil(boundingBox.max.x);
+        int maxY = (int) Math.ceil(boundingBox.max.y);
+        int maxZ = (int) Math.ceil(boundingBox.max.z);
+
+        BlockState[][][] oldBlocks = new BlockState[maxX - minX + 1][maxY - minY + 1][maxZ - minZ + 1];
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    oldBlocks[x - minX][y - minY][z - minZ] = BlockUtil.getBlockPosAtVec(zone, x, y, z).getBlockState();
+                    if(filter == null || filter.apply(BlockUtil.getBlockPosAtVec(zone, x, y, z).getBlockState()))BlockUtil.setBlockAt(zone, block, x, y, z);
+                }
+            }
+        }
+        return oldBlocks;
     }
 
     private void select(){
