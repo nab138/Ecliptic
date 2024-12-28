@@ -23,7 +23,7 @@
   ],
   "depends": {
     "cosmic-reach": ">=0.3.12",
-    "puzzle-loader": ">=2.1.13"
+    "puzzle-loader": ">=2.2.1"
   },
   "accessTransformers": [ "ecliptic.manipulator" ],
   "meta": {
