@@ -45,9 +45,7 @@ public class TemporalManipulator implements IModItem {
             action.undo(player.getZone(), () -> {
                 redoStack.push(action);
                 sendMsg("Undid " + action.mode);
-            }, () -> {
-                undoStack.push(action);
-            });
+            }, () -> undoStack.push(action));
             return;
         }
 

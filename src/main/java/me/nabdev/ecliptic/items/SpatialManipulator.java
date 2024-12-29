@@ -112,9 +112,7 @@ public class SpatialManipulator implements IModItem {
                         return;
                     }
                     FillingThread.post(oldBlocks, zone, material, boundingBox, block -> false, null);
-                    FillingThread.post(zone, this.clipboard, boundingBox, () -> {
-                        sendMsg("Pasted " + (boundingBox.getWidth() + 1) * (boundingBox.getHeight() + 1) * (boundingBox.getDepth() + 1) + " block(s) from clipboard");
-                    });
+                    FillingThread.post(zone, this.clipboard, boundingBox, () -> sendMsg("Pasted " + (boundingBox.getWidth() + 1) * (boundingBox.getHeight() + 1) * (boundingBox.getDepth() + 1) + " block(s) from clipboard"));
                     break;
                 default:
                     sendMsg("Not implemented: " + mode);
@@ -145,7 +143,7 @@ public class SpatialManipulator implements IModItem {
 
     public final static float eps = 0.01f;
 
-    private AtomicReference<BlockState[][][]> clipboard = new AtomicReference<>();
+    private final AtomicReference<BlockState[][][]> clipboard = new AtomicReference<>();
     public static final AtomicBoolean isRunning = new AtomicBoolean(false);
 
     public SpatialManipulator() {
@@ -190,9 +188,7 @@ public class SpatialManipulator implements IModItem {
             return;
         }
         if (mode == Mode.COPY) {
-            FillingThread.post(clipboard, player.getZone(), selectedMaterial, boundingBox, (BlockState b) -> false, (t) -> {
-                sendMsg("Copied " + (int) ((boundingBox.getWidth() + 1) * (boundingBox.getHeight() + 1) * (boundingBox.getDepth() + 1)) + " block(s) to clipboard");
-            });
+            FillingThread.post(clipboard, player.getZone(), selectedMaterial, boundingBox, (BlockState b) -> false, (t) -> sendMsg("Copied " + (int) ((boundingBox.getWidth() + 1) * (boundingBox.getHeight() + 1) * (boundingBox.getDepth() + 1)) + " block(s) to clipboard"));
             return;
         }
         if(mode == Mode.PASTE && clipboard.get() == null){
@@ -375,10 +371,6 @@ public class SpatialManipulator implements IModItem {
         manifest.addTag(new DataTag<>(pos + "X", new IntDataAttribute(position.getGlobalX())));
         manifest.addTag(new DataTag<>(pos + "Y", new IntDataAttribute(position.getGlobalY())));
         manifest.addTag(new DataTag<>(pos + "Z", new IntDataAttribute(position.getGlobalZ())));
-    }
-
-    public static double nanoToMilli(long nano) {
-        return (nano / 1e+6);
     }
 
     public static double nanoToSec(long nano) {
