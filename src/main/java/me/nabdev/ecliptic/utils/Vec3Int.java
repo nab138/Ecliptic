@@ -1,5 +1,7 @@
 package me.nabdev.ecliptic.utils;
 
+import com.badlogic.gdx.math.Vector3;
+
 public class Vec3Int {
     public int x;
     public int y;
@@ -13,5 +15,9 @@ public class Vec3Int {
 
     public String toString() {
         return "(" + this.x + ", " + this.y + ", " + this.z + ")";
+    }
+
+    public Vector3 toVector3() {
+        return new Vector3(this.x, this.y, this.z);
     }
 }

@@ -4,6 +4,7 @@ import com.github.puzzle.game.items.IModItem;
 import com.github.puzzle.game.items.data.DataTagManifest;
 import finalforeach.cosmicreach.blocks.BlockState;
 import finalforeach.cosmicreach.entities.player.Player;
+import finalforeach.cosmicreach.items.Item;
 import finalforeach.cosmicreach.items.ItemSlot;
 import finalforeach.cosmicreach.items.ItemStack;
 import finalforeach.cosmicreach.util.Identifier;
@@ -67,7 +68,7 @@ public class TemporalManipulator implements IModItem {
 
     @Override
     public boolean isTool() {
-        return true;
+        return false;
     }
 
     @Override
@@ -108,5 +109,15 @@ public class TemporalManipulator implements IModItem {
     @Override
     public int getMaxStackSize() {
         return 1;
+    }
+
+    @Override
+    public boolean canMergeWith(Item item) {
+        return false;
+    }
+
+    @Override
+    public boolean canMergeWithSwapGroup(Item item) {
+        return false;
     }
 }

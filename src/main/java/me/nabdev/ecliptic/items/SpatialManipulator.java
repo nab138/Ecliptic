@@ -97,13 +97,13 @@ public class SpatialManipulator implements IModItem {
             }
             switch (mode) {
                 case FILL:
-                    FillingThread.post(oldBlocks, zone, material, boundingBox, null, (t) -> {
-                        if(verbose) sendMsg("Filled " + (boundingBox.getWidth() + 1) * (boundingBox.getHeight() + 1) * (boundingBox.getDepth() + 1) + " block(s) with " + material.getName() + " in " + nanoToSec(t) + "s");
+                    FillingThread.post(oldBlocks, zone, material, boundingBox, null, (t, n) -> {
+                        if(verbose) sendMsg("Filled " + n + " block(s) with " + material.getName() + " in " + nanoToSec(t) + "s");
                     });
                     break;
                 case REPLACE:
-                    FillingThread.post(oldBlocks, zone, material, boundingBox, block -> block.getSaveKey().equals(replaceBlock.getSaveKey()), (t) -> {
-                        if(verbose) sendMsg("Replaced " + replaceBlock.getName() + " with " + material.getName() + " in " + nanoToSec(t) + "s");
+                    FillingThread.post(oldBlocks, zone, material, boundingBox, block -> block.getSaveKey().equals(replaceBlock.getSaveKey()), (t, n) -> {
+                        if(verbose) sendMsg("Replaced " + n + " " + replaceBlock.getName() + "(s) with " + material.getName() + " in " + nanoToSec(t) + "s");
                     });
                     break;
                 case PASTE:
@@ -143,7 +143,8 @@ public class SpatialManipulator implements IModItem {
 
     public final static float eps = 0.01f;
 
-    private final AtomicReference<BlockState[][][]> clipboard = new AtomicReference<>();
+    public final AtomicReference<BlockState[][][]> clipboard = new AtomicReference<>();
+    public AtomicBoolean clipboardNeedsRemeshing = new AtomicBoolean(true);
     public static final AtomicBoolean isRunning = new AtomicBoolean(false);
 
     public SpatialManipulator() {
@@ -188,7 +189,10 @@ public class SpatialManipulator implements IModItem {
             return;
         }
         if (mode == Mode.COPY) {
-            FillingThread.post(clipboard, player.getZone(), selectedMaterial, boundingBox, (BlockState b) -> false, (t) -> sendMsg("Copied " + (int) ((boundingBox.getWidth() + 1) * (boundingBox.getHeight() + 1) * (boundingBox.getDepth() + 1)) + " block(s) to clipboard"));
+            FillingThread.post(clipboard, player.getZone(), selectedMaterial, boundingBox, (BlockState b) -> false, (t, n) -> {
+                sendMsg("Copied " + (int) ((boundingBox.getWidth() + 1) * (boundingBox.getHeight() + 1) * (boundingBox.getDepth() + 1)) + " block(s) to clipboard");
+                clipboardNeedsRemeshing.set(true);
+            });
             return;
         }
         if(mode == Mode.PASTE && clipboard.get() == null){
@@ -264,7 +268,7 @@ public class SpatialManipulator implements IModItem {
 
     @Override
     public boolean isTool() {
-        return true;
+        return false;
     }
 
     @Override
@@ -345,7 +349,7 @@ public class SpatialManipulator implements IModItem {
         manifest.addTag(new DataTag<>("selectedMaterial", new StringDataAttribute(material.getSaveKey())));
     }
 
-    Vec3Int getPosition(ItemStack stack, String pos){
+    public Vec3Int getPosition(ItemStack stack, String pos){
         DataTagManifest manifest = DataTagUtil.getManifestFromStack(stack);
         if (manifest == null) return null;
         if(!hasIntProperty(stack, pos + "X")) return null;
@@ -359,13 +363,16 @@ public class SpatialManipulator implements IModItem {
         return new Vec3Int(x, y, z);
     }
 
-    BlockPosition getPosition(Zone zone, ItemStack stack, String pos){
+    public BlockPosition getPosition(Zone zone, ItemStack stack, String pos){
         Vec3Int posv = getPosition(stack, pos);
         if(posv == null) return null;
         return BlockPosition.ofGlobal(zone, posv.x, posv.y, posv.z);
     }
 
     private void setPosition(ItemStack stack, String pos, BlockPosition position) {
+        if(pos.equals("pos1")){
+            clipboardNeedsRemeshing.set(true);
+        }
         DataTagManifest manifest = DataTagUtil.getManifestFromStack(stack);
         if (manifest == null) manifest = new DataTagManifest();
         manifest.addTag(new DataTag<>(pos + "X", new IntDataAttribute(position.getGlobalX())));
@@ -373,7 +380,7 @@ public class SpatialManipulator implements IModItem {
         manifest.addTag(new DataTag<>(pos + "Z", new IntDataAttribute(position.getGlobalZ())));
     }
 
-    public static double nanoToSec(long nano) {
-        return (nano / 1e+9);
+    public static String nanoToSec(long nano) {
+        return String.format("%.2f", nano / 1e+9);
     }
 }

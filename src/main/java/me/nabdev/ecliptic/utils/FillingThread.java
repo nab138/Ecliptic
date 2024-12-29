@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 public class FillingThread implements Runnable {
@@ -23,10 +23,11 @@ public class FillingThread implements Runnable {
 
         static final Queue<Runnable> queuedRunnables = new Queue<>();
 
-        public static void post(AtomicReference<BlockState[][][]> oldBlocksRef, Zone zone, BlockState block, BoundingBox boundingBox, Function<BlockState, Boolean> filter, Consumer<Long> onDone) {
+        public static void post(AtomicReference<BlockState[][][]> oldBlocksRef, Zone zone, BlockState block, BoundingBox boundingBox, Function<BlockState, Boolean> filter, BiConsumer<Long, Integer> onDone) {
             queuedRunnables.addLast(() -> {
                 synchronized (SpatialManipulator.isRunning) {
                     SpatialManipulator.isRunning.set(true);
+                    int numBlocks = 0;
                     long startTime = System.nanoTime();
                     synchronized (oldBlocksRef) {
                         int minX = (int) Math.floor(boundingBox.min.x);
@@ -38,51 +39,28 @@ public class FillingThread implements Runnable {
 
                         BlockState[][][] oldBlocks = new BlockState[maxX - minX + 1][maxY - minY + 1][maxZ - minZ + 1];
 
-                        int xSize = maxX - minX + 1;
-                        int ySize = maxY - minY + 1;
-                        int zSize = maxZ - minZ + 1;
-                        if(ySize < xSize && ySize < zSize) {
                             for (int x = minX; x <= maxX; x++) {
                                 for (int z = minZ; z <= maxZ; z++) {
                                     for (int y = minY; y <= maxY; y++) {
                                         oldBlocks[x - minX][y - minY][z - minZ] = BlockUtil.getBlockPosAtVec(zone, x, y, z).getBlockState();
-                                        applyFill(zone, block, filter, x, y, z);
+                                        if (filter == null || filter.apply(BlockUtil.getBlockPosAtVec(zone, x, y, z).getBlockState())) {
+                                            BlockUtil.setBlockAt(zone, block, x, y, z);
+                                            numBlocks++;
+                                        }
                                     }
                                 }
                             }
-                        } else if (xSize < ySize && xSize < zSize) {
-                            for (int y = minY; y <= maxY; y++) {
-                                for (int z = minZ; z <= maxZ; z++) {
-                                    for (int x = minX; x <= maxX; x++) {
-                                        oldBlocks[x - minX][y - minY][z - minZ] = BlockUtil.getBlockPosAtVec(zone, x, y, z).getBlockState();
-                                        applyFill(zone, block, filter, x, y, z);
-                                    }
-                                }
-                            }
-                        } else {
-                            for (int x = minX; x <= maxX; x++) {
-                                for (int y = minY; y <= maxY; y++) {
-                                    for (int z = minZ; z <= maxZ; z++) {
-                                        oldBlocks[x - minX][y - minY][z - minZ] = BlockUtil.getBlockPosAtVec(zone, x, y, z).getBlockState();
-                                        applyFill(zone, block, filter, x, y, z);
-                                    }
-                                }
-                            }
-                        }
+
                         oldBlocksRef.set(oldBlocks);
                     }
-                    if (onDone != null) onDone.accept(System.nanoTime() - startTime);
+                    if (onDone != null) onDone.accept(System.nanoTime() - startTime, numBlocks);
                     SpatialManipulator.isRunning.set(false);
+
                 }
             });
 
             if (!started) start();
             else parent.onResume();
-        }
-
-        private static void applyFill(Zone zone, BlockState block, Function<BlockState, Boolean> filter, int x, int y, int z) {
-            if (filter == null || filter.apply(BlockUtil.getBlockPosAtVec(zone, x, y, z).getBlockState()))
-                BlockUtil.setBlockAt(zone, block, x, y, z);
         }
 
     public static void post(Zone zone, BlockState[][][] blocks, BoundingBox boundingBox, Runnable onDone) {

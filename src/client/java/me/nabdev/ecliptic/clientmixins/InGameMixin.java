@@ -3,11 +3,16 @@ package me.nabdev.ecliptic.clientmixins;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
+import finalforeach.cosmicreach.Threads;
+import finalforeach.cosmicreach.blocks.BlockState;
 import finalforeach.cosmicreach.entities.player.Player;
 import finalforeach.cosmicreach.gamestates.InGame;
 import finalforeach.cosmicreach.items.ItemStack;
 import finalforeach.cosmicreach.ui.UI;
+import me.nabdev.ecliptic.BlockMesh;
 import me.nabdev.ecliptic.items.SpatialManipulator;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -15,6 +20,8 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 import static me.nabdev.ecliptic.items.SpatialManipulator.eps;
 
@@ -30,6 +37,11 @@ public abstract class InGameMixin {
     @Unique
     private final static float ecliptic$lineWidth = 5f;
 
+    @Unique
+    BlockMesh ecliptic$clipboardMesh;
+    @Unique Matrix4 ecliptic$clipboardMatrix;
+
+
 
     @Inject(method = "render", at= @At(value = "INVOKE", target = "Lfinalforeach/cosmicreach/ui/UI;render()V", shift = At.Shift.BEFORE))
     public void drawShaperBoundingBox(CallbackInfo ci) {
@@ -43,6 +55,21 @@ public abstract class InGameMixin {
         }
 
         SpatialManipulator.Mode mode = manipulator.getMode(selected);
+
+        if(mode == SpatialManipulator.Mode.PASTE){
+            if(manipulator.clipboardNeedsRemeshing.get()){
+                Threads.runOnMainThread(() -> {
+                    Vector3 pos1 = manipulator.getPosition(selected, "pos1").toVector3();
+                    BlockState[][][] clipboard = manipulator.clipboard.get();
+                    if(clipboard == null) return;
+                    ecliptic$clipboardMesh = new BlockMesh(new AtomicReference<>(clipboard));
+                    ecliptic$clipboardMatrix = new Matrix4().translate(pos1).translate(0.5f, 0.5f, 0.5f);
+                });
+                manipulator.clipboardNeedsRemeshing.set(false);
+            }
+            if(ecliptic$clipboardMesh == null) return;
+            ecliptic$clipboardMesh.render(null, rawWorldCamera, ecliptic$clipboardMatrix);
+        }
 
         ecliptic$sr2.setProjectionMatrix(rawWorldCamera.combined);
         ecliptic$sr2.begin(ShapeRenderer.ShapeType.Filled);
