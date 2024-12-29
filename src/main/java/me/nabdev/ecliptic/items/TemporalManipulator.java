@@ -19,7 +19,7 @@ public class TemporalManipulator implements IModItem {
     private final static int MAX_UNDO_REDO = 10;
 
     public TemporalManipulator() {
-        addTexture(IModItem.MODEL_2_5D_ITEM, Identifier.of(Constants.MOD_ID, "temporal_manipulator.png"));
+        addTexture(IModItem.MODEL_2_5D_ITEM, Identifier.of(Constants.MOD_ID, "green_manipulator.png"));
     }
 
     private final static Stack<SpatialManipulator.Action> undoStack = new Stack<>();
@@ -42,9 +42,12 @@ public class TemporalManipulator implements IModItem {
                 return;
             }
             SpatialManipulator.Action action = undoStack.pop();
-            action.undo(player.getZone());
-            redoStack.push(action);
-            sendMsg("Undid " + action.mode);
+            action.undo(player.getZone(), () -> {
+                redoStack.push(action);
+                sendMsg("Undid " + action.mode);
+            }, () -> {
+                undoStack.push(action);
+            });
             return;
         }
 
@@ -102,5 +105,10 @@ public class TemporalManipulator implements IModItem {
     @Override
     public boolean canTargetBlockForBreaking(BlockState blockState) {
         return false;
+    }
+
+    @Override
+    public int getMaxStackSize() {
+        return 1;
     }
 }
