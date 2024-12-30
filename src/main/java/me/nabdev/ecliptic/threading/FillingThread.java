@@ -1,4 +1,4 @@
-package me.nabdev.ecliptic.utils;
+package me.nabdev.ecliptic.threading;
 
 import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.PauseableThread;
@@ -63,11 +63,11 @@ public class FillingThread implements Runnable {
             else parent.onResume();
         }
 
-    public static void post(Zone zone, BlockState[][][] blocks, BoundingBox boundingBox, Runnable onDone) {
+    public static void post(AtomicReference<BlockState[][][]> oldBlocksRef, Zone zone, BlockState[][][] blocks, BoundingBox boundingBox, Runnable onDone, boolean nullIsAir, boolean fillOldBlocks) {
         queuedRunnables.addLast(() -> {
             synchronized (SpatialManipulator.isRunning) {
                 SpatialManipulator.isRunning.set(true);
-                synchronized (zone) {
+                synchronized (oldBlocksRef) {
                     int minX = (int) Math.floor(boundingBox.min.x);
                     int minY = (int) Math.floor(boundingBox.min.y);
                     int minZ = (int) Math.floor(boundingBox.min.z);
@@ -75,34 +75,22 @@ public class FillingThread implements Runnable {
                     int maxY = (int) Math.ceil(boundingBox.max.y);
                     int maxZ = (int) Math.ceil(boundingBox.max.z);
 
-                    int xSize = maxX - minX + 1;
-                    int ySize = maxY - minY + 1;
-                    int zSize = maxZ - minZ + 1;
-                    if(ySize < xSize && ySize < zSize) {
-                        for (int x = minX; x <= maxX; x++) {
-                            for (int z = minZ; z <= maxZ; z++) {
-                                for (int y = minY; y <= maxY; y++) {
-                                    applyFill(blocks, minX, minY, minZ, zone, x, y, z);
-                                }
-                            }
-                        }
-                    } else if (xSize < ySize && xSize < zSize) {
-                        for (int y = minY; y <= maxY; y++) {
-                                for (int z = minZ; z <= maxZ; z++) {
-                                    for (int x = minX; x <= maxX; x++) {
-                                    applyFill(blocks, minX, minY, minZ, zone, x, y, z);
-                                }
-                            }
-                        }
-                    } else {
-                        for (int x = minX; x <= maxX; x++) {
+                    BlockState[][][] oldBlocks = new BlockState[maxX - minX + 1][maxY - minY + 1][maxZ - minZ + 1];
+
+                    for (int x = minX; x <= maxX; x++) {
+                        for (int z = minZ; z <= maxZ; z++) {
                             for (int y = minY; y <= maxY; y++) {
-                                for (int z = minZ; z <= maxZ; z++) {
-                                    applyFill(blocks, minX, minY, minZ, zone, x, y, z);
+                                if(fillOldBlocks) oldBlocks[x - minX][y - minY][z - minZ] = BlockUtil.getBlockPosAtVec(zone, x, y, z).getBlockState();
+                                BlockState block = blocks[x - minX][y - minY][z - minZ];
+                                if (block == null) {
+                                    if (nullIsAir) block = Block.AIR.getDefaultBlockState();
+                                    else continue;
                                 }
+                                BlockUtil.setBlockAt(zone, block, x, y, z);
                             }
                         }
                     }
+                    if(fillOldBlocks) oldBlocksRef.set(oldBlocks);
                 }
                 if (onDone != null) onDone.run();
                 SpatialManipulator.isRunning.set(false);
@@ -113,13 +101,15 @@ public class FillingThread implements Runnable {
         else parent.onResume();
     }
 
-    private static void applyFill(BlockState[][][] blocks, int minX, int minY, int minZ, Zone zone, int x, int y, int z) {
-        BlockState block = blocks[x - minX][y - minY][z - minZ];
-        if (block == null) {
-            block = Block.AIR.getDefaultBlockState();
-        }
-        BlockUtil.setBlockAt(zone, block, x, y, z);
+    private static final AtomicReference<BlockState[][][]> EMPTY = new AtomicReference<>(null);
+    public static void post(Zone zone, BlockState[][][] blocks, BoundingBox boundingBox, Runnable onDone, boolean nullIsAir) {
+        post(EMPTY, zone, blocks, boundingBox, onDone, nullIsAir, false);
     }
+
+    public static void post(AtomicReference<BlockState[][][]> oldBlocksRef, Zone zone, BlockState[][][] blocks, BoundingBox boundingBox, Runnable onDone, boolean nullIsAir) {
+        post(oldBlocksRef, zone, blocks, boundingBox, onDone, nullIsAir, true);
+    }
+
 
 
         public FillingThread() {

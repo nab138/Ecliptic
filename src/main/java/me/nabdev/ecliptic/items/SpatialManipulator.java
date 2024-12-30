@@ -4,16 +4,11 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.BoundingBox;
 import com.github.puzzle.game.items.IModItem;
-import com.github.puzzle.game.items.data.DataTag;
 import com.github.puzzle.game.items.data.DataTagManifest;
-import com.github.puzzle.game.items.data.attributes.IntDataAttribute;
-import com.github.puzzle.game.items.data.attributes.StringDataAttribute;
 import com.github.puzzle.game.util.BlockSelectionUtil;
-import com.github.puzzle.game.util.DataTagUtil;
 import finalforeach.cosmicreach.blocks.Block;
 import finalforeach.cosmicreach.blocks.BlockPosition;
 import finalforeach.cosmicreach.blocks.BlockState;
-import finalforeach.cosmicreach.blocks.MissingBlockStateResult;
 import finalforeach.cosmicreach.entities.player.Player;
 import finalforeach.cosmicreach.items.Item;
 import finalforeach.cosmicreach.items.ItemSlot;
@@ -21,18 +16,21 @@ import finalforeach.cosmicreach.items.ItemStack;
 import finalforeach.cosmicreach.util.Identifier;
 import finalforeach.cosmicreach.world.Zone;
 import me.nabdev.ecliptic.Constants;
-import me.nabdev.ecliptic.utils.FillingThread;
-import me.nabdev.ecliptic.utils.Vec3Int;
+import me.nabdev.ecliptic.threading.FillingThread;
+import me.nabdev.ecliptic.utils.Action;
+import me.nabdev.ecliptic.utils.DataTagUtils;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static me.nabdev.ecliptic.utils.ChatHelper.blockPosToString;
 import static me.nabdev.ecliptic.utils.ChatHelper.sendMsg;
+import static me.nabdev.ecliptic.utils.ControlUtils.ctrlPressed;
 
 public class SpatialManipulator implements IModItem {
     DataTagManifest tagManifest = new DataTagManifest();
     public final static Identifier id = Identifier.of(Constants.MOD_ID, "spatial_manipulator");
+    public final DataTagUtils dataTag = new DataTagUtils(this);
 
     public enum Mode {
         FILL(2, true, new Color(0.9098039216f, 0.2745098039f, 0.2745098039f, 1), new Color(0.7882352941f, 0, 0, 0.25f)),
@@ -69,7 +67,7 @@ public class SpatialManipulator implements IModItem {
         }
     }
 
-    public static class Action{
+    public static class SpatialManipulatorAction implements Action {
         public final Mode mode;
         public final BlockState material;
         public final BoundingBox boundingBox;
@@ -77,7 +75,7 @@ public class SpatialManipulator implements IModItem {
         public BlockState replaceBlock;
         public BlockState[][][] clipboard;
 
-        public Action(Mode mode, BlockState material, BoundingBox boundingBox, BlockState[][][] clipboard){
+        public SpatialManipulatorAction(Mode mode, BlockState material, BoundingBox boundingBox, BlockState[][][] clipboard){
             this.mode = mode;
             this.material = material;
             this.boundingBox = new BoundingBox(boundingBox);
@@ -90,6 +88,7 @@ public class SpatialManipulator implements IModItem {
             }
         }
 
+        @Override
         public void apply(Zone zone, boolean verbose){
             if(isRunning.get()){
                 sendMsg("Please wait until the current action is completed before starting a new one");
@@ -112,17 +111,19 @@ public class SpatialManipulator implements IModItem {
                         return;
                     }
                     FillingThread.post(oldBlocks, zone, material, boundingBox, block -> false, null);
-                    FillingThread.post(zone, this.clipboard, boundingBox, () -> sendMsg("Pasted " + (boundingBox.getWidth() + 1) * (boundingBox.getHeight() + 1) * (boundingBox.getDepth() + 1) + " block(s) from clipboard"));
+                    FillingThread.post(zone, this.clipboard, boundingBox, () -> sendMsg("Pasted " + (boundingBox.getWidth() + 1) * (boundingBox.getHeight() + 1) * (boundingBox.getDepth() + 1) + " block(s) from clipboard"), true);
                     break;
                 default:
                     sendMsg("Not implemented: " + mode);
             }
         }
 
+        @Override
         public void apply(Zone zone){
             apply(zone, false);
         }
 
+        @Override
         public void undo (Zone zone, Runnable after, Runnable ifFailed){
             if(isRunning.get() || oldBlocks.get() == null){
                 sendMsg("Please wait until the current action is completed before undoing it");
@@ -131,15 +132,18 @@ public class SpatialManipulator implements IModItem {
             }
             switch (mode) {
                 case FILL, REPLACE, PASTE:
-                    FillingThread.post(zone, oldBlocks.get(), boundingBox, after);
+                    FillingThread.post(zone, oldBlocks.get(), boundingBox, after, true);
                     break;
                 default:
                     sendMsg("Undo not implemented for mode " + mode);
             }
         }
-    }
 
-    public static boolean ctrlPressed = false;
+        @Override
+        public String getName() {
+            return mode.toString();
+        }
+    }
 
     public final static float eps = 0.01f;
 
@@ -154,19 +158,19 @@ public class SpatialManipulator implements IModItem {
     @Override
     public void use(ItemSlot slot, Player player, boolean leftClick) {
         Mode mode = getMode(slot.itemStack);
-        BlockState selectedMaterial = getSelectedMaterial(slot.itemStack);
-        BlockPosition pos1 = getPosition(player.getZone(), slot.itemStack, "pos1");
-        BlockPosition pos2 = getPosition(player.getZone(), slot.itemStack, "pos2");
+        BlockState selectedMaterial = dataTag.getSelectedMaterial(slot.itemStack);
+        BlockPosition pos1 = dataTag.getPosition(player.getZone(), slot.itemStack, "pos1");
+        BlockPosition pos2 = dataTag.getPosition(player.getZone(), slot.itemStack, "pos2");
         BoundingBox boundingBox = getBoundingBox(mode, pos1, pos2, false);
 
         if(!leftClick){
             if(ctrlPressed) {
                 BlockState block = BlockSelectionUtil.getBlockLookingAt();
                 if (block != null) {
-                    setSelectedMaterial(slot.itemStack, block);
+                    dataTag.setSelectedMaterial(slot.itemStack, block);
                     sendMsg("Selected material: " + block.getName());
                 } else {
-                    setSelectedMaterial(slot.itemStack, Block.AIR.getDefaultBlockState());
+                    dataTag.setSelectedMaterial(slot.itemStack, Block.AIR.getDefaultBlockState());
                     sendMsg("Selected material: Air");
                 }
                 return;
@@ -199,7 +203,7 @@ public class SpatialManipulator implements IModItem {
             sendMsg("Nothing in clipboard to paste");
             return;
         }
-        Action actionToApply = new Action(mode, selectedMaterial, boundingBox, clipboard.get());
+        SpatialManipulatorAction actionToApply = new SpatialManipulatorAction(mode, selectedMaterial, boundingBox, clipboard.get());
         actionToApply.apply(player.getZone(), true);
         TemporalManipulator.addToUndoStack(actionToApply);
     }
@@ -243,8 +247,8 @@ public class SpatialManipulator implements IModItem {
 
     public BoundingBox getVisualBoundingBox(ItemStack stack, Zone zone){
         Mode mode = getMode(stack);
-        BlockPosition pos1 = getPosition(zone, stack, "pos1");
-        BlockPosition pos2 = getPosition(zone, stack, "pos2");
+        BlockPosition pos1 = dataTag.getPosition(zone, stack, "pos1");
+        BlockPosition pos2 = dataTag.getPosition(zone, stack, "pos2");
         return getBoundingBox(mode, pos1, pos2, true);
     }
 
@@ -321,63 +325,20 @@ public class SpatialManipulator implements IModItem {
         return false;
     }
 
-    public Mode getMode(ItemStack stack){
-        DataTagManifest manifest = DataTagUtil.getManifestFromStack(stack);
-        if(manifest == null) return Mode.FILL;
-        if(!manifest.hasTag("mode")) return Mode.FILL;
-        return Mode.valueOf((String) manifest.getTag("mode").getValue());
-    }
-
     private void setMode(ItemStack stack, Mode mode){
-        DataTagManifest manifest = DataTagUtil.getManifestFromStack(stack);
-        if(manifest == null) manifest = new DataTagManifest();
-        manifest.addTag(new DataTag<>("mode", new StringDataAttribute(mode.toString())));
-
+        dataTag.setString(stack, "mode", mode.toString());
         setCurrentEntry(stack, mode.ordinal());
     }
 
-    BlockState getSelectedMaterial(ItemStack stack){
-        DataTagManifest manifest = DataTagUtil.getManifestFromStack(stack);
-        if(manifest == null) return null;
-        if(!manifest.hasTag("selectedMaterial")) return null;
-        return BlockState.getInstance((String) manifest.getTag("selectedMaterial").getValue(), MissingBlockStateResult.MISSING_OBJECT);
-    }
-
-    private void setSelectedMaterial(ItemStack stack, BlockState material){
-        DataTagManifest manifest = DataTagUtil.getManifestFromStack(stack);
-        if(manifest == null) manifest = new DataTagManifest();
-        manifest.addTag(new DataTag<>("selectedMaterial", new StringDataAttribute(material.getSaveKey())));
-    }
-
-    public Vec3Int getPosition(ItemStack stack, String pos){
-        DataTagManifest manifest = DataTagUtil.getManifestFromStack(stack);
-        if (manifest == null) return null;
-        if(!hasIntProperty(stack, pos + "X")) return null;
-        if(!hasIntProperty(stack, pos + "Y")) return null;
-        if(!hasIntProperty(stack, pos + "Z")) return null;
-
-        int x = getIntProperty(stack, pos + "X", -1);
-        int y = getIntProperty(stack, pos + "Y", -1);
-        int z = getIntProperty(stack, pos + "Z", -1);
-
-        return new Vec3Int(x, y, z);
-    }
-
-    public BlockPosition getPosition(Zone zone, ItemStack stack, String pos){
-        Vec3Int posv = getPosition(stack, pos);
-        if(posv == null) return null;
-        return BlockPosition.ofGlobal(zone, posv.x, posv.y, posv.z);
+    public Mode getMode(ItemStack stack){
+        String rawMode = dataTag.getString(stack, "mode");
+        if(rawMode == null) return Mode.FILL;
+        return Mode.valueOf(rawMode);
     }
 
     private void setPosition(ItemStack stack, String pos, BlockPosition position) {
-        if(pos.equals("pos1")){
-            clipboardNeedsRemeshing.set(true);
-        }
-        DataTagManifest manifest = DataTagUtil.getManifestFromStack(stack);
-        if (manifest == null) manifest = new DataTagManifest();
-        manifest.addTag(new DataTag<>(pos + "X", new IntDataAttribute(position.getGlobalX())));
-        manifest.addTag(new DataTag<>(pos + "Y", new IntDataAttribute(position.getGlobalY())));
-        manifest.addTag(new DataTag<>(pos + "Z", new IntDataAttribute(position.getGlobalZ())));
+        dataTag.setPosition(stack, pos, position);
+        if(pos.equals("pos1")) clipboardNeedsRemeshing.set(true);
     }
 
     public static String nanoToSec(long nano) {

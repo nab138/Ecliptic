@@ -11,6 +11,9 @@
     "init": [
       "me.nabdev.ecliptic.Ecliptic"
     ],
+    "client_init": [
+      "me.nabdev.ecliptic.EclipticClient"
+    ],
     "tooltip": [
       "me.nabdev.ecliptic.TooltipFactory"
     ]

@@ -9,6 +9,7 @@ import finalforeach.cosmicreach.items.ItemSlot;
 import finalforeach.cosmicreach.items.ItemStack;
 import finalforeach.cosmicreach.util.Identifier;
 import me.nabdev.ecliptic.Constants;
+import me.nabdev.ecliptic.utils.Action;
 
 import java.util.Stack;
 
@@ -17,22 +18,30 @@ import static me.nabdev.ecliptic.utils.ChatHelper.sendMsg;
 public class TemporalManipulator implements IModItem {
     DataTagManifest tagManifest = new DataTagManifest();
     public final static Identifier id = Identifier.of(Constants.MOD_ID, "temporal_manipulator");
-    private final static int MAX_UNDO_REDO = 10;
+    private final static int MAX_UNDO_REDO = 50;
 
     public TemporalManipulator() {
-        addTexture(IModItem.MODEL_2_5D_ITEM, Identifier.of(Constants.MOD_ID, "green_manipulator.png"));
+        addTexture(IModItem.MODEL_2_5D_ITEM, Identifier.of(Constants.MOD_ID, "temporal_manipulator.png"));
     }
 
-    private final static Stack<SpatialManipulator.Action> undoStack = new Stack<>();
-    private final static Stack<SpatialManipulator.Action> redoStack = new Stack<>();
+    private final static Stack<Action> undoStack = new Stack<>();
+    private final static Stack<Action> redoStack = new Stack<>();
 
-    public static void addToUndoStack(SpatialManipulator.Action action){
+    public static void addToUndoStack(Action action){
         undoStack.push(action);
 
 
         if(undoStack.size() > MAX_UNDO_REDO) //noinspection SequencedCollectionMethodCanBeUsed
             undoStack.remove(0);
         redoStack.clear();
+    }
+
+    public static int getUndoLength(){
+        return undoStack.size();
+    }
+
+    public static int getRedoLength(){
+        return redoStack.size();
     }
 
     @Override
@@ -42,10 +51,10 @@ public class TemporalManipulator implements IModItem {
                 sendMsg("Nothing to undo");
                 return;
             }
-            SpatialManipulator.Action action = undoStack.pop();
+            Action action = undoStack.pop();
             action.undo(player.getZone(), () -> {
                 redoStack.push(action);
-                sendMsg("Undid " + action.mode);
+                sendMsg("Undid " + action.getName());
             }, () -> undoStack.push(action));
             return;
         }
@@ -55,10 +64,10 @@ public class TemporalManipulator implements IModItem {
             sendMsg("Nothing to redo");
             return;
         }
-        SpatialManipulator.Action actionToRedo = redoStack.pop();
+        Action actionToRedo = redoStack.pop();
         actionToRedo.apply(player.getZone());
         undoStack.push(actionToRedo);
-        sendMsg("Redid " + actionToRedo.mode);
+        sendMsg("Redid " + actionToRedo.getName());
     }
 
     @Override

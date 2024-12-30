@@ -1,4 +1,4 @@
-package me.nabdev.ecliptic.utils;
+package me.nabdev.ecliptic.threading;
 
 public interface TickingRunnable {
 

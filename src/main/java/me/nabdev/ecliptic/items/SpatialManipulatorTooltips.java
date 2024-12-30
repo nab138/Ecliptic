@@ -5,7 +5,7 @@ import finalforeach.cosmicreach.items.ItemStack;
 import me.nabdev.cosmictooltips.api.ITooltipItem;
 import me.nabdev.ecliptic.utils.Vec3Int;
 
-public class ShaperTooltips implements ITooltipItem {
+public class SpatialManipulatorTooltips implements ITooltipItem {
     @Override
     public String getItemID() {
         return SpatialManipulator.id.toString();
@@ -14,9 +14,9 @@ public class ShaperTooltips implements ITooltipItem {
     @Override
     public String getTooltipText(ItemStack itemStack) {
         if (itemStack.getItem() instanceof SpatialManipulator s) {
-            BlockState selectedMaterial = s.getSelectedMaterial(itemStack);
-            Vec3Int pos1 = s.getPosition(itemStack, "pos1");
-            Vec3Int pos2 = s.getPosition(itemStack, "pos2");
+            BlockState selectedMaterial = s.dataTag.getSelectedMaterial(itemStack);
+            Vec3Int pos1 = s.dataTag.getPosition(itemStack, "pos1");
+            Vec3Int pos2 = s.dataTag.getPosition(itemStack, "pos2");
 
             StringBuilder builder = new StringBuilder();
             builder.append("Current mode: ");
