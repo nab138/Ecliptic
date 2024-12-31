@@ -75,11 +75,36 @@ public class SpatialManipulator implements IModItem {
         public BlockState replaceBlock;
         public BlockState[][][] clipboard;
 
+        public SpatialManipulatorAction(Mode mode, BlockState material, BoundingBox boundingBox, BlockState[][][] clipboard, BlockState replaceBlock){
+            this.mode = mode;
+            this.material = material;
+            this.boundingBox = new BoundingBox(boundingBox);
+            if(mode == Mode.PASTE) this.clipboard = clipboard;
+            if(mode == Mode.REPLACE){
+                this.replaceBlock = replaceBlock;
+            }
+        }
+
         public SpatialManipulatorAction(Mode mode, BlockState material, BoundingBox boundingBox, BlockState[][][] clipboard){
             this.mode = mode;
             this.material = material;
             this.boundingBox = new BoundingBox(boundingBox);
             if(mode == Mode.PASTE) this.clipboard = clipboard;
+            if(mode == Mode.REPLACE){
+                replaceBlock = BlockSelectionUtil.getBlockLookingAt();
+                if(replaceBlock == null){
+                    replaceBlock = Block.AIR.getDefaultBlockState();
+                }
+            }
+        }
+
+        public SpatialManipulatorAction(Mode mode, BlockState material, BoundingBox boundingBox){
+            if(mode == Mode.PASTE){
+                throw new IllegalArgumentException("Cannot create a paste action without clipboard");
+            }
+            this.mode = mode;
+            this.material = material;
+            this.boundingBox = new BoundingBox(boundingBox);
             if(mode == Mode.REPLACE){
                 replaceBlock = BlockSelectionUtil.getBlockLookingAt();
                 if(replaceBlock == null){

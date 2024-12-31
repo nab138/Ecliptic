@@ -1,4 +1,4 @@
-package me.nabdev.ecliptic;
+package me.nabdev.ecliptic.utils;
 
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.Color;

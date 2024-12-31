@@ -4,13 +4,18 @@ import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.PauseableThread;
 import com.badlogic.gdx.utils.Queue;
 import com.github.puzzle.game.util.BlockUtil;
+import finalforeach.cosmicreach.GameSingletons;
 import finalforeach.cosmicreach.blocks.Block;
 import finalforeach.cosmicreach.blocks.BlockState;
+import finalforeach.cosmicreach.lighting.LightPropagator;
+import finalforeach.cosmicreach.world.Chunk;
 import finalforeach.cosmicreach.world.Zone;
 import me.nabdev.ecliptic.items.SpatialManipulator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -22,6 +27,7 @@ public class FillingThread implements Runnable {
         public static PauseableThread parent;
 
         static final Queue<Runnable> queuedRunnables = new Queue<>();
+        static final LightPropagator lightProp = new LightPropagator();
 
         public static void post(AtomicReference<BlockState[][][]> oldBlocksRef, Zone zone, BlockState block, BoundingBox boundingBox, Function<BlockState, Boolean> filter, BiConsumer<Long, Integer> onDone) {
             queuedRunnables.addLast(() -> {
@@ -38,20 +44,26 @@ public class FillingThread implements Runnable {
                         int maxZ = (int) Math.ceil(boundingBox.max.z);
 
                         BlockState[][][] oldBlocks = new BlockState[maxX - minX + 1][maxY - minY + 1][maxZ - minZ + 1];
+                        List<Chunk> chunksToUpdate = new ArrayList<>();
 
                             for (int x = minX; x <= maxX; x++) {
                                 for (int z = minZ; z <= maxZ; z++) {
                                     for (int y = minY; y <= maxY; y++) {
                                         oldBlocks[x - minX][y - minY][z - minZ] = BlockUtil.getBlockPosAtVec(zone, x, y, z).getBlockState();
                                         if (filter == null || filter.apply(BlockUtil.getBlockPosAtVec(zone, x, y, z).getBlockState())) {
-                                            BlockUtil.setBlockAt(zone, block, x, y, z);
+                                            zone.setBlockState(block, x, y, z);
+                                            Chunk c = zone.getChunkAtBlock(x, y, z);
+                                            if (!chunksToUpdate.contains(c)) chunksToUpdate.add(c);
+
                                             numBlocks++;
+
                                         }
                                     }
                                 }
                             }
 
                         oldBlocksRef.set(oldBlocks);
+                        remesh(chunksToUpdate, zone);
                     }
                     if (onDone != null) onDone.accept(System.nanoTime() - startTime, numBlocks);
                     SpatialManipulator.isRunning.set(false);
@@ -62,6 +74,26 @@ public class FillingThread implements Runnable {
             if (!started) start();
             else parent.onResume();
         }
+
+    private static void remesh(List<Chunk> chunksToUpdate, Zone zone) {
+        for(Chunk c : chunksToUpdate){
+            c.setGenerated(true);
+        }
+        for(Chunk c : chunksToUpdate){
+            c.flagForRemeshing(true);
+            boolean isSky = c.chunkY >= -1;
+            if (isSky) {
+                for(int i = c.chunkY; i < c.chunkY + 16; ++i) {
+                    if (zone.getChunkAtChunkCoords(c.chunkX, c.chunkY + i, c.chunkZ) != null) {
+                        isSky = false;
+                        break;
+                    }
+                }
+            }
+            lightProp.calculateLightingForChunk(zone, c, isSky);
+        }
+        GameSingletons.meshGenThread.requestImmediateResorting();
+    }
 
     public static void post(AtomicReference<BlockState[][][]> oldBlocksRef, Zone zone, BlockState[][][] blocks, BoundingBox boundingBox, Runnable onDone, boolean nullIsAir, boolean fillOldBlocks) {
         queuedRunnables.addLast(() -> {
@@ -76,6 +108,7 @@ public class FillingThread implements Runnable {
                     int maxZ = (int) Math.ceil(boundingBox.max.z);
 
                     BlockState[][][] oldBlocks = new BlockState[maxX - minX + 1][maxY - minY + 1][maxZ - minZ + 1];
+                    List<Chunk> chunksToUpdate = new ArrayList<>();
 
                     for (int x = minX; x <= maxX; x++) {
                         for (int z = minZ; z <= maxZ; z++) {
@@ -86,11 +119,14 @@ public class FillingThread implements Runnable {
                                     if (nullIsAir) block = Block.AIR.getDefaultBlockState();
                                     else continue;
                                 }
-                                BlockUtil.setBlockAt(zone, block, x, y, z);
+                                zone.setBlockState(block, x, y, z);
+                                Chunk c = zone.getChunkAtBlock(x, y, z);
+                                if (!chunksToUpdate.contains(c)) chunksToUpdate.add(c);
                             }
                         }
                     }
                     if(fillOldBlocks) oldBlocksRef.set(oldBlocks);
+                    remesh(chunksToUpdate, zone);
                 }
                 if (onDone != null) onDone.run();
                 SpatialManipulator.isRunning.set(false);

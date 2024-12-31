@@ -33,18 +33,19 @@ public class Constructor implements IModItem {
     public final static Identifier id = Identifier.of(Constants.MOD_ID, "constructor");
 
     public Constructor() {
-        addTexture(IModItem.MODEL_2_5D_ITEM, Identifier.of(Constants.MOD_ID, "sphere_filled_constructor.png"),
+        addTexture(IModItem.MODEL_2_5D_ITEM,
+                Identifier.of(Constants.MOD_ID, "box_filled_constructor.png"),
+                Identifier.of(Constants.MOD_ID, "box_hollow_constructor.png"),
+                Identifier.of(Constants.MOD_ID, "sphere_filled_constructor.png"),
                 Identifier.of(Constants.MOD_ID, "sphere_hollow_constructor.png"),
                 Identifier.of(Constants.MOD_ID, "cylinder_filled_constructor.png"),
-                Identifier.of(Constants.MOD_ID, "cylinder_hollow_constructor.png"),
-                Identifier.of(Constants.MOD_ID, "box_filled_constructor.png"),
-                Identifier.of(Constants.MOD_ID, "box_hollow_constructor.png"));
+                Identifier.of(Constants.MOD_ID, "cylinder_hollow_constructor.png"));
     }
 
     public enum Mode {
+        BOX,
         SPHERE,
         CYLINDER,
-        BOX
     }
 
     public static class ConstructorAction implements Action {
@@ -129,6 +130,7 @@ public class Constructor implements IModItem {
                 setMode(slot.itemStack, Mode.values()[(mode.ordinal() + 1) % Mode.values().length]);
                 mode = getMode(slot.itemStack);
                 sendMsg("Mode set to " + mode);
+                sendMsg("Warning: Only box mode is implemented!");
                 return;
             }
             PreviewData preview = getPreview(slot.itemStack);
@@ -253,7 +255,7 @@ public class Constructor implements IModItem {
 
     public Mode getMode(ItemStack itemStack) {
         String rawMode = dataTag.getString(itemStack, "mode");
-        if(rawMode == null) return Mode.SPHERE;
+        if(rawMode == null) return Mode.BOX;
         return Mode.valueOf(rawMode);
     }
 

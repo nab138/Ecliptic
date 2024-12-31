@@ -1,4 +1,4 @@
-package me.nabdev.ecliptic;
+package me.nabdev.ecliptic.utils;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Camera;
@@ -16,7 +16,6 @@ import finalforeach.cosmicreach.entities.player.Player;
 import finalforeach.cosmicreach.gamestates.GameState;
 import finalforeach.cosmicreach.world.Chunk;
 import finalforeach.cosmicreach.world.Zone;
-import me.nabdev.ecliptic.utils.RaycastUtils;
 
 public class Raycaster implements RaycastUtils.IRaycaster {
 
@@ -33,7 +32,7 @@ public class Raycaster implements RaycastUtils.IRaycaster {
     private final Array<BoundingBox> tmpBoundingBoxes = new Array<>(BoundingBox.class);
     private final Vector3 normal = new Vector3();
 
-    private  final Vector3 intersection = new Vector3();
+    private final Vector3 intersection = new Vector3();
     static Pool<BlockPosition> positionPool = new Pool<>() {
         protected BlockPosition newObject() {
             PooledBlockPosition<BlockPosition> p = new PooledBlockPosition<>(Raycaster.positionPool, null, 0, 0, 0);
@@ -69,7 +68,7 @@ public class Raycaster implements RaycastUtils.IRaycaster {
                     return false;
                 }
                 bb = var3.next();
-            } while(!Intersector.intersectRayBounds(ray, bb, intersection));
+            } while (!Intersector.intersectRayBounds(ray, bb, intersection));
 
             // Calculate the normal vector
             calculateNormal(bb, intersection, normal);
@@ -97,19 +96,19 @@ public class Raycaster implements RaycastUtils.IRaycaster {
     }
 
     @Override
-    public RaycastUtils.HitInfo raycast(Player p){
+    public RaycastUtils.HitInfo raycast(Player p) {
         Camera worldCamera = GameState.IN_GAME.getWorldCamera();
         Zone zone = p.getZone();
-                    if (Gdx.input.isCursorCatched()) {
-                        this.ray.set(worldCamera.position, worldCamera.direction);
-                    } else {
-                        this.mouseCoords.set((float) Gdx.input.getX(), (float) Gdx.input.getY(), 0.0F);
-                        this.mouseCoords2.set((float) Gdx.input.getX(), (float) Gdx.input.getY(), 1.0F);
-                        worldCamera.unproject(this.mouseCoords);
-                        worldCamera.unproject(this.mouseCoords2);
-                        this.mouseCoords2.sub(this.mouseCoords).nor();
-                        this.ray.set(this.mouseCoords, this.mouseCoords2);
-                    }
+        if (Gdx.input.isCursorCatched()) {
+            this.ray.set(worldCamera.position, worldCamera.direction);
+        } else {
+            this.mouseCoords.set((float) Gdx.input.getX(), (float) Gdx.input.getY(), 0.0F);
+            this.mouseCoords2.set((float) Gdx.input.getX(), (float) Gdx.input.getY(), 1.0F);
+            worldCamera.unproject(this.mouseCoords);
+            worldCamera.unproject(this.mouseCoords2);
+            this.mouseCoords2.sub(this.mouseCoords).nor();
+            this.ray.set(this.mouseCoords, this.mouseCoords2);
+        }
 
 
         boolean raycastHit = false;
@@ -118,10 +117,10 @@ public class Raycaster implements RaycastUtils.IRaycaster {
         toVisit.clear();
         blockQueue.clear();
         workingPos.set(ray.origin);
-        for(; workingPos.dst(ray.origin) <= MAX_DISTANCE; workingPos.add(ray.direction)) {
-            int bx = (int)Math.floor(workingPos.x);
-            int by = (int)Math.floor(workingPos.y);
-            int bz = (int)Math.floor(workingPos.z);
+        for (; workingPos.dst(ray.origin) <= MAX_DISTANCE; workingPos.add(ray.direction)) {
+            int bx = (int) Math.floor(workingPos.x);
+            int by = (int) Math.floor(workingPos.y);
+            int bz = (int) Math.floor(workingPos.z);
             int dx = 0;
             int dy = 0;
             int dz = 0;
@@ -166,7 +165,7 @@ public class Raycaster implements RaycastUtils.IRaycaster {
                     blockQueue.addLast(nextBlockPos);
                     toVisit.add(nextBlockPos);
                 } else if (block.canRaycastForReplace()) {
-                    tmpBoundingBox.min.set((float)nextBlockPos.getGlobalX(), (float)nextBlockPos.getGlobalY(), (float)nextBlockPos.getGlobalZ());
+                    tmpBoundingBox.min.set((float) nextBlockPos.getGlobalX(), (float) nextBlockPos.getGlobalY(), (float) nextBlockPos.getGlobalZ());
                     tmpBoundingBox.max.set(tmpBoundingBox.min).add(1.0F, 1.0F, 1.0F);
                     if (Intersector.intersectRayBounds(ray, tmpBoundingBox, intersection)) {
                         blockQueue.addLast(nextBlockPos);
@@ -175,7 +174,7 @@ public class Raycaster implements RaycastUtils.IRaycaster {
                 }
             }
             label186:
-            while(true) {
+            while (true) {
                 BlockState blockState;
                 BlockPosition curBlockPos;
                 do {
@@ -184,12 +183,12 @@ public class Raycaster implements RaycastUtils.IRaycaster {
                     }
                     curBlockPos = blockQueue.removeFirst();
                     blockState = curBlockPos.getBlockState();
-                } while(!blockState.hasEmptyModel() && !intersectsWithBlock(blockState, curBlockPos));
+                } while (!blockState.hasEmptyModel() && !intersectsWithBlock(blockState, curBlockPos));
                 if (blockState.canRaycastForBreak()) {
                     hitBlockPos = curBlockPos;
                     raycastHit = true;
                 }
-                if (hitBlockPos != null){
+                if (hitBlockPos != null) {
                     break;
                 }
             }
@@ -199,7 +198,7 @@ public class Raycaster implements RaycastUtils.IRaycaster {
             lastBlockPosAtPoint = nextBlockPos;
         }
         positionPool.freeAll(positionsToFree);
-        if (!raycastHit){
+        if (!raycastHit) {
             return null;
         }
         return new RaycastUtils.HitInfo(hitBlockPos, normal);
