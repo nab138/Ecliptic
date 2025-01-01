@@ -46,20 +46,23 @@ public class TemporalManipulator implements IModItem {
 
     @Override
     public void use(ItemSlot slot, Player player, boolean leftClick) {
-        if(leftClick){
-            if(undoStack.isEmpty()){
-                sendMsg("Nothing to undo");
-                return;
-            }
-            Action action = undoStack.pop();
-            action.undo(player.getZone(), () -> {
-                redoStack.push(action);
-                sendMsg("Undid " + action.getName());
-            }, () -> undoStack.push(action));
+        if(leftClick) undo(player);
+        else redo(player);
+    }
+
+    public static void undo(Player player){
+        if(undoStack.isEmpty()){
+            sendMsg("Nothing to undo");
             return;
         }
+        Action actionToUndo = undoStack.pop();
+        actionToUndo.undo(player.getZone(), () -> {
+            redoStack.push(actionToUndo);
+            sendMsg("Undid " + actionToUndo.getName());
+        }, () -> undoStack.push(actionToUndo));
+    }
 
-
+    public static void redo(Player player){
         if(redoStack.isEmpty()){
             sendMsg("Nothing to redo");
             return;

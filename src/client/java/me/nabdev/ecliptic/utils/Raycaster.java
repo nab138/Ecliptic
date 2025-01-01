@@ -19,7 +19,7 @@ import finalforeach.cosmicreach.world.Zone;
 
 public class Raycaster implements RaycastUtils.IRaycaster {
 
-    private static final int MAX_DISTANCE = 100;
+    private static final int MAX_DISTANCE = 150;
     private final Ray ray = new Ray();
     private final Array<BlockPosition> toVisit = new Array<>();
     private final Vector3 workingPos = new Vector3();

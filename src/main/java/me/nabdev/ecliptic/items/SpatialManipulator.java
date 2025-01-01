@@ -172,8 +172,8 @@ public class SpatialManipulator implements IModItem {
 
     public final static float eps = 0.01f;
 
-    public final AtomicReference<BlockState[][][]> clipboard = new AtomicReference<>();
-    public AtomicBoolean clipboardNeedsRemeshing = new AtomicBoolean(true);
+    public static final AtomicReference<BlockState[][][]> clipboard = new AtomicReference<>();
+    public static AtomicBoolean clipboardNeedsRemeshing = new AtomicBoolean(true);
     public static final AtomicBoolean isRunning = new AtomicBoolean(false);
 
     public SpatialManipulator() {
@@ -252,7 +252,7 @@ public class SpatialManipulator implements IModItem {
         if(pos1 == null || (pos2 == null && mode.getRequiredSelections() != 1)){
             return null;
         }
-        BlockState[][][] clipboard = this.clipboard.get();
+        BlockState[][][] clipboard = SpatialManipulator.clipboard.get();
         if(mode == Mode.PASTE && clipboard != null){
             Vector3 pos1v = blockPositionToVector3(pos1);
             Vector3 pos2v = new Vector3(clipboard.length, clipboard[0].length, clipboard[0][0].length).add(pos1v).sub(1, 1, 1);

@@ -43,7 +43,7 @@ public class MeshingUtils {
                     Vector3 offset = new Vector3(x, y, z);
                     Matrix4 matrix = new Matrix4().translate(pos1).translate(offset).translate(0.5f, 0.5f, 0.5f);
                     BlockMesh mesh = new BlockMesh(new AtomicReference<>(subClipboard));
-                    if(notAir) meshes.add(new MeshData(mesh, matrix));
+                    if (notAir) meshes.add(new MeshData(mesh, matrix));
                 }
             }
         }

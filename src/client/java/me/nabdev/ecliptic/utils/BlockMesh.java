@@ -74,11 +74,11 @@ public class BlockMesh implements IEntityModelInstance {
             BlockState airBlockState = Block.AIR.getDefaultBlockState();
             MeshData data = null;
             //state.get().addVertices(data, 0, 0, 0);
-            for(int x = 0; x < state.get().length; x++){
-                for(int y = 0; y < state.get()[0].length; y++){
-                    for(int z = 0; z < state.get()[0][0].length; z++) {
+            for (int x = 0; x < state.get().length; x++) {
+                for (int y = 0; y < state.get()[0].length; y++) {
+                    for (int z = 0; z < state.get()[0][0].length; z++) {
                         BlockState b = state.get()[x][y][z];
-                        if(b == null) b = airBlockState;
+                        if (b == null) b = airBlockState;
                         if (b != airBlockState) {
                             BlockState bnx = getBlockState(x - 1, y, z);
                             BlockState bpx = getBlockState(x + 1, y, z);
@@ -146,7 +146,7 @@ public class BlockMesh implements IEntityModelInstance {
                                 GameShader shader = GameShader.getShaderForBlockState(b);
 
                                 RenderOrder renderOrder = RenderOrder.getRenderOrderForBlockState(b);
-                                if(data == null) data = new MeshData(shader, renderOrder);
+                                if (data == null) data = new MeshData(shader, renderOrder);
 
 
                                 b.addVertices(data, x, y, z, opaqueBitmask, blockLightLevels, skyLightLevels);
@@ -156,7 +156,7 @@ public class BlockMesh implements IEntityModelInstance {
                 }
             }
 
-            if(data == null) return;
+            if (data == null) return;
             if (BlockModelJson.useIndices) {
                 mesh = data.toIntIndexedMesh(true);
             } else {
@@ -193,7 +193,8 @@ public class BlockMesh implements IEntityModelInstance {
                 mesh.unbind(this.shader.shader);
 
                 this.shader.unbind();
-            } catch (Exception ignore) {}
+            } catch (Exception ignore) {
+            }
 
             if (!BlockModelJson.useIndices) {
                 SharedQuadIndexData.unbind();
@@ -218,7 +219,8 @@ public class BlockMesh implements IEntityModelInstance {
     }
 
     private BlockState getBlockState(int x, int y, int z) {
-        if(x < 0 || y < 0 || z < 0 || x >= state.get().length || y >= state.get()[0].length || z >= state.get()[0][0].length) return null;
+        if (x < 0 || y < 0 || z < 0 || x >= state.get().length || y >= state.get()[0].length || z >= state.get()[0][0].length)
+            return null;
         return state.get()[x][y][z];
     }
 }
