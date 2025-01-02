@@ -4,10 +4,13 @@ import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.PauseableThread;
 import com.badlogic.gdx.utils.Queue;
 import com.github.puzzle.game.util.BlockUtil;
+import com.github.puzzle.game.util.IClientNetworkManager;
 import finalforeach.cosmicreach.GameSingletons;
 import finalforeach.cosmicreach.blocks.Block;
+import finalforeach.cosmicreach.blocks.BlockPosition;
 import finalforeach.cosmicreach.blocks.BlockState;
 import finalforeach.cosmicreach.lighting.LightPropagator;
+import finalforeach.cosmicreach.networking.packets.blocks.PlaceBlockPacket;
 import finalforeach.cosmicreach.world.Chunk;
 import finalforeach.cosmicreach.world.Zone;
 import me.nabdev.ecliptic.items.SpatialManipulator;
@@ -54,9 +57,11 @@ public class FillingThread implements Runnable {
                                             zone.setBlockState(block, x, y, z);
                                             Chunk c = zone.getChunkAtBlock(x, y, z);
                                             if (!chunksToUpdate.contains(c)) chunksToUpdate.add(c);
-
+                                            if (IClientNetworkManager.isConnected()) {
+                                                BlockPosition pos = BlockPosition.ofGlobal(zone, x, y, z);
+                                                IClientNetworkManager.sendAsClient(new PlaceBlockPacket(zone, pos, block));
+                                            }
                                             numBlocks++;
-
                                         }
                                     }
                                 }
@@ -122,6 +127,10 @@ public class FillingThread implements Runnable {
                                 zone.setBlockState(block, x, y, z);
                                 Chunk c = zone.getChunkAtBlock(x, y, z);
                                 if (!chunksToUpdate.contains(c)) chunksToUpdate.add(c);
+                                if (IClientNetworkManager.isConnected()) {
+                                    BlockPosition pos = BlockPosition.ofGlobal(zone, x, y, z);
+                                    IClientNetworkManager.sendAsClient(new PlaceBlockPacket(zone, pos, block));
+                                }
                             }
                         }
                     }
