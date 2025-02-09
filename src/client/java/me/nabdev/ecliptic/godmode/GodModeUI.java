@@ -3,7 +3,6 @@ package me.nabdev.ecliptic.godmode;
 import com.badlogic.gdx.utils.Array;
 import finalforeach.cosmicreach.gamestates.InGame;
 import finalforeach.cosmicreach.ui.HorizontalAnchor;
-import finalforeach.cosmicreach.ui.UIElement;
 import finalforeach.cosmicreach.ui.UIObject;
 import finalforeach.cosmicreach.ui.VerticalAnchor;
 import me.nabdev.ecliptic.items.SpatialManipulator;
@@ -13,6 +12,8 @@ import me.nabdev.ecliptic.threading.FillingThread;
 import static me.nabdev.ecliptic.godmode.GodMode.*;
 import static me.nabdev.ecliptic.utils.ChatHelper.sendMsg;
 
+// TODO: CRButton?
+@SuppressWarnings("removal")
 public class GodModeUI {
     private static final float btnWidth = 180.0F;
     private static final float btnHeight = 60.0F;
@@ -36,7 +37,7 @@ public class GodModeUI {
     }
 
     private static void addButton(Array<UIObject> uiObjects, float x, float y, float width, String text, Runnable onClick, HorizontalAnchor hAnchor, VerticalAnchor vAnchor) {
-        UIElement button = new UIElement(x, y, width, btnHeight) {
+        var button = new finalforeach.cosmicreach.ui.UIElement(x, y, width, btnHeight) {
             @Override
             public void onClick() {
                 super.onClick();
@@ -52,7 +53,7 @@ public class GodModeUI {
 
 
     private static float addMaterialSelectionButton(Array<UIObject> uiObjects, float x, float y) {
-        selectMatBtn = new UIElement(x, y, GodModeUI.btnWidth, GodModeUI.btnHeight) {
+        selectMatBtn = new finalforeach.cosmicreach.ui.UIElement(x, y, GodModeUI.btnWidth, GodModeUI.btnHeight) {
             @Override
             public void onClick() {
                 super.onClick();

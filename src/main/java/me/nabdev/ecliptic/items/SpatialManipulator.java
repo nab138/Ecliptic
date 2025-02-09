@@ -181,7 +181,7 @@ public class SpatialManipulator implements IModItem {
     }
 
     @Override
-    public void use(ItemSlot slot, Player player, boolean leftClick) {
+    public void use(ItemSlot slot, Player player, BlockPosition targetPlaceBlockPos, BlockPosition targetBreakBlockPos, boolean leftClick) {
         Mode mode = getMode(slot.itemStack);
         BlockState selectedMaterial = dataTag.getSelectedMaterial(slot.itemStack);
         BlockPosition pos1 = dataTag.getPosition(player.getZone(), slot.itemStack, "pos1");
@@ -200,7 +200,7 @@ public class SpatialManipulator implements IModItem {
                 }
                 return;
             }
-            select(player.isSneakIntended, mode, slot.itemStack);
+            select(player.isSneakIntended, mode, slot.itemStack, BlockSelectionUtil.getBlockPositionLookingAt());
             return;
         }
         if(!player.isSneakIntended){
@@ -233,8 +233,7 @@ public class SpatialManipulator implements IModItem {
         TemporalManipulator.addToUndoStack(actionToApply);
     }
 
-    private void select(boolean second, Mode mode, ItemStack stack){
-        BlockPosition pos = BlockSelectionUtil.getBlockPositionLookingAt();
+    private void select(boolean second, Mode mode, ItemStack stack, BlockPosition pos){
         if(pos == null) {
             return;
         }

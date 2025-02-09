@@ -17,7 +17,6 @@ import finalforeach.cosmicreach.blocks.BlockState;
 import finalforeach.cosmicreach.entities.player.Player;
 import finalforeach.cosmicreach.gamestates.GameState;
 import finalforeach.cosmicreach.gamestates.InGame;
-import finalforeach.cosmicreach.ui.UIElement;
 import me.nabdev.ecliptic.items.SpatialManipulator;
 import me.nabdev.ecliptic.items.TemporalManipulator;
 import me.nabdev.ecliptic.utils.BoundingBoxUtils;
@@ -28,6 +27,8 @@ import me.nabdev.ecliptic.utils.Raycaster;
 import java.util.ArrayList;
 import java.util.List;
 
+// TODO: CRButton?
+@SuppressWarnings("removal")
 public class GodMode {
     static Vector3 pos1 = null;
     static Vector3 pos2 = null;
@@ -56,9 +57,9 @@ public class GodMode {
 
     static BlockState selectedBlock = null;
 
-    public static List<UIElement> godModeUIObjects = new ArrayList<>();
+    public static List<finalforeach.cosmicreach.ui.UIElement> godModeUIObjects = new ArrayList<>();
 
-    static UIElement selectMatBtn;
+    static finalforeach.cosmicreach.ui.UIElement selectMatBtn;
 
     private static final Vector3 initialPos1 = new Vector3();
     private static final Vector3 initialPos2 = new Vector3();
@@ -91,7 +92,7 @@ public class GodMode {
             Viewport uiViewport = ((InGameAccessor) GameState.IN_GAME).ecliptic$getViewport();
             mouse.set((float) Gdx.input.getX(), (float) Gdx.input.getY());
             uiViewport.unproject(mouse);
-            for (UIElement uiObject : godModeUIObjects) {
+            for (var uiObject : godModeUIObjects) {
                 if (uiObject.isHoveredOver(uiViewport, mouse.x, mouse.y)) {
                     leftMousePressed = false;
                 }

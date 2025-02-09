@@ -2,6 +2,7 @@ package me.nabdev.ecliptic.items;
 
 import com.github.puzzle.game.items.IModItem;
 import com.github.puzzle.game.items.data.DataTagManifest;
+import finalforeach.cosmicreach.blocks.BlockPosition;
 import finalforeach.cosmicreach.blocks.BlockState;
 import finalforeach.cosmicreach.entities.player.Player;
 import finalforeach.cosmicreach.items.Item;
@@ -31,7 +32,7 @@ public class TemporalManipulator implements IModItem {
         undoStack.push(action);
 
 
-        if(undoStack.size() > MAX_UNDO_REDO) //noinspection SequencedCollectionMethodCanBeUsed
+        if(undoStack.size() > MAX_UNDO_REDO)
             undoStack.remove(0);
         redoStack.clear();
     }
@@ -45,7 +46,7 @@ public class TemporalManipulator implements IModItem {
     }
 
     @Override
-    public void use(ItemSlot slot, Player player, boolean leftClick) {
+    public void use(ItemSlot slot, Player player, BlockPosition p, BlockPosition p2, boolean leftClick) {
         if(leftClick) undo(player);
         else redo(player);
     }

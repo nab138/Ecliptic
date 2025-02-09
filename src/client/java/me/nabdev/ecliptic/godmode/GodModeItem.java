@@ -3,6 +3,7 @@ package me.nabdev.ecliptic.godmode;
 import com.badlogic.gdx.math.Vector3;
 import com.github.puzzle.game.items.IModItem;
 import com.github.puzzle.game.items.data.DataTagManifest;
+import finalforeach.cosmicreach.blocks.BlockPosition;
 import finalforeach.cosmicreach.blocks.BlockState;
 import finalforeach.cosmicreach.entities.player.Player;
 import finalforeach.cosmicreach.items.Item;
@@ -24,7 +25,7 @@ public class GodModeItem implements IModItem {
     }
 
     @Override
-    public void use(ItemSlot slot, Player p) {
+    public void use(ItemSlot slot, Player p, BlockPosition p1, BlockPosition p2) {
         if (!godMode) {
             originalPos.set(p.getPosition());
             wasNoClip = p.getEntity().noClip;

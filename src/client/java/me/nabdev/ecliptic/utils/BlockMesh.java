@@ -9,7 +9,6 @@ import com.badlogic.gdx.math.Vector3;
 import finalforeach.cosmicreach.blocks.Block;
 import finalforeach.cosmicreach.blocks.BlockState;
 import finalforeach.cosmicreach.entities.Entity;
-import finalforeach.cosmicreach.rendering.MeshData;
 import finalforeach.cosmicreach.rendering.RenderOrder;
 import finalforeach.cosmicreach.rendering.SharedQuadIndexData;
 import finalforeach.cosmicreach.rendering.blockmodels.BlockModelJson;
@@ -17,6 +16,7 @@ import finalforeach.cosmicreach.rendering.entities.EntityModelInstance;
 import finalforeach.cosmicreach.rendering.entities.IEntityModel;
 import finalforeach.cosmicreach.rendering.entities.IEntityModelInstance;
 import finalforeach.cosmicreach.rendering.meshes.GameMesh;
+import finalforeach.cosmicreach.rendering.meshes.MeshData;
 import finalforeach.cosmicreach.rendering.shaders.ChunkShader;
 import finalforeach.cosmicreach.rendering.shaders.GameShader;
 import finalforeach.cosmicreach.world.Sky;
@@ -209,7 +209,12 @@ public class BlockMesh implements IEntityModelInstance {
     }
 
     @Override
-    public void setCurrentAnimation(String s) {
+    public void addAnimation(String s) {
+
+    }
+
+    @Override
+    public void removeAnimation(String s) {
 
     }
 
