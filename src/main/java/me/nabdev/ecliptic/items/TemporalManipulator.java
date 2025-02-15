@@ -46,7 +46,7 @@ public class TemporalManipulator implements IModItem {
     }
 
     @Override
-    public void use(ItemSlot slot, Player player, BlockPosition p, BlockPosition p2, boolean leftClick) {
+    public void clientUse(ItemSlot slot, Player player, BlockPosition p, BlockPosition p2, boolean leftClick) {
         if(leftClick) undo(player);
         else redo(player);
     }

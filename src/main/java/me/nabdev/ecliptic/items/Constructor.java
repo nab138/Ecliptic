@@ -106,7 +106,7 @@ public class Constructor implements IModItem {
     public record PreviewData(BlockState[][][] preview, Vector3 position) {}
 
     @Override
-    public void use(ItemSlot slot, Player player, BlockPosition targetPlaceBlockPos, BlockPosition targetBreakBlockPos, boolean leftClick) {
+    public void clientUse(ItemSlot slot, Player player, BlockPosition targetPlaceBlockPos, BlockPosition targetBreakBlockPos, boolean leftClick) {
         Mode mode = getMode(slot.itemStack);
 
         if(ControlUtils.xPressed){

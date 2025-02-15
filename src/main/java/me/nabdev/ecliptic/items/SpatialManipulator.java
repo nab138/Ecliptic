@@ -181,7 +181,7 @@ public class SpatialManipulator implements IModItem {
     }
 
     @Override
-    public void use(ItemSlot slot, Player player, BlockPosition targetPlaceBlockPos, BlockPosition targetBreakBlockPos, boolean leftClick) {
+    public void clientUse(ItemSlot slot, Player player, BlockPosition targetPlaceBlockPos, BlockPosition targetBreakBlockPos, boolean leftClick) {
         Mode mode = getMode(slot.itemStack);
         BlockState selectedMaterial = dataTag.getSelectedMaterial(slot.itemStack);
         BlockPosition pos1 = dataTag.getPosition(player.getZone(), slot.itemStack, "pos1");

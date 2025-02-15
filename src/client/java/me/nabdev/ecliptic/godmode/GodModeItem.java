@@ -25,7 +25,7 @@ public class GodModeItem implements IModItem {
     }
 
     @Override
-    public void use(ItemSlot slot, Player p, BlockPosition p1, BlockPosition p2) {
+    public void clientUse(ItemSlot slot, Player p, BlockPosition p1, BlockPosition p2) {
         if (!godMode) {
             originalPos.set(p.getPosition());
             wasNoClip = p.getEntity().noClip;
