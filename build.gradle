@@ -26,7 +26,7 @@ repositories {
 dependencies {
     cosmicReach("finalforeach:cosmicreach:${cosmic_reach_version}")
 
-    mod files('run/pmods/CosmicTooltips-1.3.9-merged-bundle.jar')
+    mod files('run/pmods/CosmicTooltips-1.4.0-merged-bundle.jar')
 }
 
 processResources {

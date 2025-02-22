@@ -107,33 +107,33 @@ public class Constructor implements IModItem {
 
     @Override
     public void clientUse(ItemSlot slot, Player player, BlockPosition targetPlaceBlockPos, BlockPosition targetBreakBlockPos, boolean leftClick) {
-        Mode mode = getMode(slot.itemStack);
+        Mode mode = getMode(slot.getItemStack());
 
         if(ControlUtils.xPressed){
             int add = leftClick ? -1 : 1;
-            dataTag.setInt(slot.itemStack, "xScale", Math.max(getIntProperty(slot.itemStack, "xScale", 3) + add, 1));
+            dataTag.setInt(slot.getItemStack(), "xScale", Math.max(getIntProperty(slot.getItemStack(), "xScale", 3) + add, 1));
             return;
         }
         if(ControlUtils.yPressed){
             int add = leftClick ? -1 : 1;
-            dataTag.setInt(slot.itemStack, "yScale", Math.max(getIntProperty(slot.itemStack, "yScale", 3) + add, 1));
+            dataTag.setInt(slot.getItemStack(), "yScale", Math.max(getIntProperty(slot.getItemStack(), "yScale", 3) + add, 1));
             return;
         }
         if(ControlUtils.zPressed){
             int add = leftClick ? -1 : 1;
-            dataTag.setInt(slot.itemStack, "zScale", Math.max(getIntProperty(slot.itemStack, "zScale", 3) + add, 1));
+            dataTag.setInt(slot.getItemStack(), "zScale", Math.max(getIntProperty(slot.getItemStack(), "zScale", 3) + add, 1));
             return;
         }
 
         if(leftClick){
             if(!player.isSneakIntended){
-                setMode(slot.itemStack, Mode.values()[(mode.ordinal() + 1) % Mode.values().length]);
-                mode = getMode(slot.itemStack);
+                setMode(slot.getItemStack(), Mode.values()[(mode.ordinal() + 1) % Mode.values().length]);
+                mode = getMode(slot.getItemStack());
                 sendMsg("Mode set to " + mode);
                 sendMsg("Warning: Only box mode is implemented!");
                 return;
             }
-            PreviewData preview = getPreview(slot.itemStack);
+            PreviewData preview = getPreview(slot.getItemStack());
             if(preview == null){
                 sendMsg("Not implemented yet!");
                 return;
@@ -147,16 +147,16 @@ public class Constructor implements IModItem {
             if (ctrlPressed) {
                 BlockState block = BlockSelectionUtil.getBlockLookingAt();
                 if (block != null) {
-                    dataTag.setSelectedMaterial(slot.itemStack, block);
+                    dataTag.setSelectedMaterial(slot.getItemStack(), block);
                     sendMsg("Selected material: " + block.getName());
                 } else {
-                    dataTag.setSelectedMaterial(slot.itemStack, Block.AIR.getDefaultBlockState());
+                    dataTag.setSelectedMaterial(slot.getItemStack(), Block.AIR.getDefaultBlockState());
                     sendMsg("Selected material: Air");
                     return;
                 }
             }
-            toggleFilled(slot.itemStack);
-            sendMsg("Switched to " + (getFilled(slot.itemStack) ? "filled" : "hollow") + " mode");
+            toggleFilled(slot.getItemStack());
+            sendMsg("Switched to " + (getFilled(slot.getItemStack()) ? "filled" : "hollow") + " mode");
         }
     }
 

@@ -182,30 +182,30 @@ public class SpatialManipulator implements IModItem {
 
     @Override
     public void clientUse(ItemSlot slot, Player player, BlockPosition targetPlaceBlockPos, BlockPosition targetBreakBlockPos, boolean leftClick) {
-        Mode mode = getMode(slot.itemStack);
-        BlockState selectedMaterial = dataTag.getSelectedMaterial(slot.itemStack);
-        BlockPosition pos1 = dataTag.getPosition(player.getZone(), slot.itemStack, "pos1");
-        BlockPosition pos2 = dataTag.getPosition(player.getZone(), slot.itemStack, "pos2");
+        Mode mode = getMode(slot.getItemStack());
+        BlockState selectedMaterial = dataTag.getSelectedMaterial(slot.getItemStack());
+        BlockPosition pos1 = dataTag.getPosition(player.getZone(), slot.getItemStack(), "pos1");
+        BlockPosition pos2 = dataTag.getPosition(player.getZone(), slot.getItemStack(), "pos2");
         BoundingBox boundingBox = getBoundingBox(mode, pos1, pos2, false);
 
         if(!leftClick){
             if(ctrlPressed) {
                 BlockState block = BlockSelectionUtil.getBlockLookingAt();
                 if (block != null) {
-                    dataTag.setSelectedMaterial(slot.itemStack, block);
+                    dataTag.setSelectedMaterial(slot.getItemStack(), block);
                     sendMsg("Selected material: " + block.getName());
                 } else {
-                    dataTag.setSelectedMaterial(slot.itemStack, Block.AIR.getDefaultBlockState());
+                    dataTag.setSelectedMaterial(slot.getItemStack(), Block.AIR.getDefaultBlockState());
                     sendMsg("Selected material: Air");
                 }
                 return;
             }
-            select(player.isSneakIntended, mode, slot.itemStack, BlockSelectionUtil.getBlockPositionLookingAt());
+            select(player.isSneakIntended, mode, slot.getItemStack(), BlockSelectionUtil.getBlockPositionLookingAt());
             return;
         }
         if(!player.isSneakIntended){
-            setMode(slot.itemStack, Mode.values()[(mode.ordinal() + 1) % Mode.values().length]);
-            mode = getMode(slot.itemStack);
+            setMode(slot.getItemStack(), Mode.values()[(mode.ordinal() + 1) % Mode.values().length]);
+            mode = getMode(slot.getItemStack());
             sendMsg("Mode set to " + mode);
             return;
         }
