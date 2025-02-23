@@ -38,6 +38,13 @@ public class DataTagUtils {
         return BlockState.getInstance((String) manifest.getTag("selectedMaterial").getValue(), MissingBlockStateResult.MISSING_OBJECT);
     }
 
+    public BlockState getSelectedMaterial(ItemStack stack, BlockState defaultMaterial){
+        BlockState material = getSelectedMaterial(stack);
+        if(material == null) return defaultMaterial;
+        return material;
+    }
+
+
     public void setSelectedMaterial(ItemStack stack, BlockState material){
         DataTagManifest manifest = DataTagUtil.getManifestFromStack(stack);
         if(manifest == null) manifest = new DataTagManifest();

@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static me.nabdev.ecliptic.items.SpatialManipulator.isRunning;
 import static me.nabdev.ecliptic.utils.ChatHelper.sendMsg;
 import static me.nabdev.ecliptic.utils.ControlUtils.ctrlPressed;
+import static me.nabdev.ecliptic.utils.ControlUtils.shiftPressed;
 
 public class Constructor implements IModItem {
     DataTagManifest tagManifest = new DataTagManifest();
@@ -73,7 +74,7 @@ public class Constructor implements IModItem {
                 return;
             }
             if (preview == null || box == null) return;
-            BlockState[][][] blocks = preview.preview;
+            BlockState[][][] blocks = preview.preview();
             FillingThread.post(oldBlocksRef, zone, blocks, box, () -> {
                 if (verbose) {
                     sendMsg("Filled " + blocks.length * blocks[0].length * blocks[0][0].length + " blocks");
@@ -112,25 +113,29 @@ public class Constructor implements IModItem {
         if(ControlUtils.xPressed){
             int add = leftClick ? -1 : 1;
             dataTag.setInt(slot.getItemStack(), "xScale", Math.max(getIntProperty(slot.getItemStack(), "xScale", 3) + add, 1));
+            sendMsg("Size set to " + getIntProperty(slot.getItemStack(), "xScale", 3) + "x" + getIntProperty(slot.getItemStack(), "yScale", 3) + "x" + getIntProperty(slot.getItemStack(), "zScale", 3));
             return;
         }
         if(ControlUtils.yPressed){
             int add = leftClick ? -1 : 1;
             dataTag.setInt(slot.getItemStack(), "yScale", Math.max(getIntProperty(slot.getItemStack(), "yScale", 3) + add, 1));
+            sendMsg("Size set to " + getIntProperty(slot.getItemStack(), "xScale", 3) + "x" + getIntProperty(slot.getItemStack(), "yScale", 3) + "x" + getIntProperty(slot.getItemStack(), "zScale", 3));
             return;
         }
         if(ControlUtils.zPressed){
             int add = leftClick ? -1 : 1;
             dataTag.setInt(slot.getItemStack(), "zScale", Math.max(getIntProperty(slot.getItemStack(), "zScale", 3) + add, 1));
+            sendMsg("Size set to " + getIntProperty(slot.getItemStack(), "xScale", 3) + "x" + getIntProperty(slot.getItemStack(), "yScale", 3) + "x" + getIntProperty(slot.getItemStack(), "zScale", 3));
             return;
         }
 
         if(leftClick){
-            if(!player.isSneakIntended){
-                setMode(slot.getItemStack(), Mode.values()[(mode.ordinal() + 1) % Mode.values().length]);
-                mode = getMode(slot.getItemStack());
-                sendMsg("Mode set to " + mode);
-                sendMsg("Warning: Only box mode is implemented!");
+            if(!ctrlPressed && !shiftPressed){
+                BlockState block = BlockSelectionUtil.getBlockLookingAt();
+                if (block != null) {
+                    dataTag.setSelectedMaterial(slot.getItemStack(), block);
+                    sendMsg("Selected material: " + block.getName());
+                }
                 return;
             }
             PreviewData preview = getPreview(slot.getItemStack());
@@ -141,52 +146,151 @@ public class Constructor implements IModItem {
             ConstructorAction action = new ConstructorAction(mode, preview);
             action.apply(player.getZone(), true);
             TemporalManipulator.addToUndoStack(action);
-
-
-        } else {
-            if (ctrlPressed) {
-                BlockState block = BlockSelectionUtil.getBlockLookingAt();
-                if (block != null) {
-                    dataTag.setSelectedMaterial(slot.getItemStack(), block);
-                    sendMsg("Selected material: " + block.getName());
-                } else {
-                    dataTag.setSelectedMaterial(slot.getItemStack(), Block.AIR.getDefaultBlockState());
-                    sendMsg("Selected material: Air");
-                    return;
-                }
-            }
-            toggleFilled(slot.getItemStack());
-            sendMsg("Switched to " + (getFilled(slot.getItemStack()) ? "filled" : "hollow") + " mode");
+            return;
         }
+        toggleFilled(slot.getItemStack());
+        sendMsg("Switched to " + (getFilled(slot.getItemStack()) ? "filled" : "hollow") + " mode");
+    }
+
+    public void changeMode(ItemStack stack){
+        Mode mode = getMode(stack);
+        setMode(stack, Mode.values()[(mode.ordinal() + 1) % Mode.values().length]);
+        sendMsg("Mode set to " + getMode(stack));
     }
 
     public PreviewData getPreview(ItemStack stack){
         Mode mode = getMode(stack);
         boolean filled = getFilled(stack);
         return switch (mode) {
-            case SPHERE -> filled ? getSphere() : getHollowSphere();
-            case CYLINDER -> filled ? getCylinder() : getHollowCylinder();
+            case SPHERE -> filled ? getSphere(stack) : getHollowSphere(stack);
+            case CYLINDER -> filled ? getCylinder(stack) : getHollowCylinder(stack);
             case BOX -> filled ? getBox(stack) : getHollowBox(stack);
         };
     }
 
-    private PreviewData getSphere(){
-        return null;
+
+    private PreviewData getSphere(ItemStack stack){
+        int xSize = getIntProperty(stack, "xScale", 3);
+        int ySize = getIntProperty(stack, "yScale", 3);
+        int zSize = getIntProperty(stack, "zScale", 3);
+
+        Vector3 adjustedPos = getAdjustedPos(stack);
+        if (adjustedPos == null) return null;
+
+        BlockState[][][] blocks = new BlockState[xSize][ySize][zSize];
+        BlockState selectedMaterial = dataTag.getSelectedMaterial(stack, Block.HAZARD.getDefaultBlockState());
+        for (int x = 0; x < xSize; x++) {
+            for (int y = 0; y < ySize; y++) {
+                for (int z = 0; z < zSize; z++) {
+                    // If it satisfies the ellipsoid equation
+                    if (Math.pow(x - (xSize - 1) / 2.0, 2) / Math.pow((xSize - 1) / 2.0, 2) +
+                            Math.pow(y - (ySize - 1) / 2.0, 2) / Math.pow((ySize - 1) / 2.0, 2) +
+                            Math.pow(z - (zSize - 1) / 2.0, 2) / Math.pow((zSize - 1) / 2.0, 2) <= 1) {
+                        blocks[x][y][z] = selectedMaterial;
+                    }
+                }
+            }
+        }
+        return new PreviewData(blocks, adjustedPos);
     }
 
-    private PreviewData getHollowSphere(){
-        return null;
+    private PreviewData getHollowSphere(ItemStack stack){
+        PreviewData sphere = getSphere(stack);
+        if(sphere == null) return null;
+        return makeHollow(sphere);
     }
 
-    private PreviewData getCylinder(){
-        return null;
+    private PreviewData getCylinder(ItemStack stack){
+        int xSize = getIntProperty(stack, "xScale", 3);
+        int ySize = getIntProperty(stack, "yScale", 3);
+        int zSize = getIntProperty(stack, "zScale", 3);
+
+        Vector3 adjustedPos = getAdjustedPos(stack);
+        if (adjustedPos == null) return null;
+
+        BlockState[][][] blocks = new BlockState[xSize][ySize][zSize];
+        BlockState selectedMaterial = dataTag.getSelectedMaterial(stack, Block.HAZARD.getDefaultBlockState());
+        for (int x = 0; x < xSize; x++) {
+            for (int y = 0; y < ySize; y++) {
+                for (int z = 0; z < zSize; z++) {
+                    // If it satisfies the cylinder equation
+                    if (Math.pow(x - (xSize - 1) / 2.0, 2) / Math.pow((xSize - 1) / 2.0, 2) +
+                            Math.pow(z - (zSize - 1) / 2.0, 2) / Math.pow((zSize - 1) / 2.0, 2) <= 1) {
+                        blocks[x][y][z] = selectedMaterial;
+                    }
+                }
+            }
+        }
+        return new PreviewData(blocks, adjustedPos);
     }
 
-    private PreviewData getHollowCylinder(){
-        return null;
+    private PreviewData getHollowCylinder(ItemStack stack){
+        PreviewData cylinder = getCylinder(stack);
+        if(cylinder == null) return null;
+        return makeHollow(cylinder);
     }
 
     private PreviewData getBox(ItemStack stack) {
+        int xSize = getIntProperty(stack, "xScale", 3);
+        int ySize = getIntProperty(stack, "yScale", 3);
+        int zSize = getIntProperty(stack, "zScale", 3);
+
+        Vector3 adjustedPos = getAdjustedPos(stack);
+        if (adjustedPos == null) return null;
+
+        BlockState[][][] blocks = new BlockState[xSize][ySize][zSize];
+        BlockState selectedMaterial = dataTag.getSelectedMaterial(stack, Block.HAZARD.getDefaultBlockState());
+        for (int x = 0; x < xSize; x++) {
+            for (int y = 0; y < ySize; y++) {
+                for (int z = 0; z < zSize; z++) {
+                    blocks[x][y][z] = selectedMaterial;
+                }
+            }
+        }
+        return new PreviewData(blocks, adjustedPos);
+    }
+
+    private PreviewData getHollowBox(ItemStack stack){
+        PreviewData box = getBox(stack);
+        if(box == null) return null;
+        BlockState[][][] blocks = box.preview;
+        for (int x = 1; x < blocks.length - 1; x++) {
+            for (int y = 1; y < blocks[0].length - 1; y++) {
+                for (int z = 1; z < blocks[0][0].length - 1; z++) {
+                    blocks[x][y][z] = null;
+                }
+            }
+        }
+        return new PreviewData(blocks, box.position);
+    }
+
+    private PreviewData makeHollow(PreviewData data){
+        // Remove any blocks that aren't exposed to air/null
+        BlockState[][][] blocks = data.preview;
+        BlockState[][][] newBlocks = new BlockState[blocks.length][blocks[0].length][blocks[0][0].length];
+        for (int x = 0; x < blocks.length; x++) {
+            for (int y = 0; y < blocks[0].length; y++) {
+                for (int z = 0; z < blocks[0][0].length; z++) {
+                    if(blocks[x][y][z] == null) continue;
+                    if(isExposed(blocks, x, z, y)){
+                        newBlocks[x][y][z] = blocks[x][y][z];
+                        }
+                }
+            }
+        }
+        return new PreviewData(newBlocks, data.position);
+    }
+
+    private boolean isExposed(BlockState[][][] blocks, int x, int z, int y){
+        if(x - 1 < 0 || blocks[x - 1][y][z] == null) return true;
+        if(x + 1 >= blocks.length || blocks[x + 1][y][z] == null) return true;
+        if(y - 1 < 0 || blocks[x][y - 1][z] == null) return true;
+        if(y + 1 >= blocks[0].length || blocks[x][y + 1][z] == null) return true;
+        if(z - 1 < 0 || blocks[x][y][z - 1] == null) return true;
+        return z + 1 >= blocks[0][0].length || blocks[x][y][z + 1] == null;
+    }
+
+    private Vector3 getAdjustedPos(ItemStack stack){
         BlockPosition pos1 = RaycastUtils.getCurrentLookAt();
         Vector3 normal = RaycastUtils.getCurrentNormal();
 
@@ -221,31 +325,7 @@ public class Constructor implements IModItem {
         } else {
             adjustedPos.z -= (float) Math.floor((zSize - 1) / 2.0f);
         }
-
-        BlockState[][][] blocks = new BlockState[xSize][ySize][zSize];
-        BlockState selectedMaterial = dataTag.getSelectedMaterial(stack);
-        for (int x = 0; x < xSize; x++) {
-            for (int y = 0; y < ySize; y++) {
-                for (int z = 0; z < zSize; z++) {
-                    blocks[x][y][z] = selectedMaterial;
-                }
-            }
-        }
-        return new PreviewData(blocks, adjustedPos);
-    }
-
-    private PreviewData getHollowBox(ItemStack stack){
-        PreviewData box = getBox(stack);
-        if(box == null) return null;
-        BlockState[][][] blocks = box.preview;
-        for (int x = 1; x < blocks.length - 1; x++) {
-            for (int y = 1; y < blocks[0].length - 1; y++) {
-                for (int z = 1; z < blocks[0][0].length - 1; z++) {
-                    blocks[x][y][z] = null;
-                }
-            }
-        }
-        return new PreviewData(blocks, box.position);
+        return adjustedPos;
     }
 
     private void setMode(ItemStack itemStack, Mode mode) {

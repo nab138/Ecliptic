@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static me.nabdev.ecliptic.utils.ChatHelper.blockPosToString;
 import static me.nabdev.ecliptic.utils.ChatHelper.sendMsg;
 import static me.nabdev.ecliptic.utils.ControlUtils.ctrlPressed;
+import static me.nabdev.ecliptic.utils.ControlUtils.shiftPressed;
 
 public class SpatialManipulator implements IModItem {
     DataTagManifest tagManifest = new DataTagManifest();
@@ -187,28 +188,22 @@ public class SpatialManipulator implements IModItem {
         BlockPosition pos1 = dataTag.getPosition(player.getZone(), slot.getItemStack(), "pos1");
         BlockPosition pos2 = dataTag.getPosition(player.getZone(), slot.getItemStack(), "pos2");
         BoundingBox boundingBox = getBoundingBox(mode, pos1, pos2, false);
-
         if(!leftClick){
-            if(ctrlPressed) {
-                BlockState block = BlockSelectionUtil.getBlockLookingAt();
-                if (block != null) {
-                    dataTag.setSelectedMaterial(slot.getItemStack(), block);
-                    sendMsg("Selected material: " + block.getName());
-                } else {
-                    dataTag.setSelectedMaterial(slot.getItemStack(), Block.AIR.getDefaultBlockState());
-                    sendMsg("Selected material: Air");
-                }
-                return;
+            select(shiftPressed || ctrlPressed, mode, slot.getItemStack(), BlockSelectionUtil.getBlockPositionLookingAt());
+            return;
+        }
+        if(!shiftPressed){
+            BlockState block = BlockSelectionUtil.getBlockLookingAt();
+            if (block != null) {
+                dataTag.setSelectedMaterial(slot.getItemStack(), block);
+                sendMsg("Selected material: " + block.getName());
+            } else {
+                dataTag.setSelectedMaterial(slot.getItemStack(), Block.AIR.getDefaultBlockState());
+                sendMsg("Selected material: Air");
             }
-            select(player.isSneakIntended, mode, slot.getItemStack(), BlockSelectionUtil.getBlockPositionLookingAt());
             return;
         }
-        if(!player.isSneakIntended){
-            setMode(slot.getItemStack(), Mode.values()[(mode.ordinal() + 1) % Mode.values().length]);
-            mode = getMode(slot.getItemStack());
-            sendMsg("Mode set to " + mode);
-            return;
-        }
+
         if((mode.getRequiredSelections() == 1 && pos1 == null) || (mode.getRequiredSelections() == 2 && (pos1 == null || pos2 == null))){
             sendMsg("Please select " + mode.getRequiredSelections() + " position" + (mode.getRequiredSelections() == 1 ? "" : "s") + " before using the spatial manipulator in mode " + mode);
             return;
@@ -245,6 +240,12 @@ public class SpatialManipulator implements IModItem {
         else setPosition(stack, "pos1", pos.copy());
 
         sendMsg("Pos " + (second ? 2 : 1) + " set to " + blockPosToString(pos));
+    }
+
+    public void changeMode(ItemStack stack){
+        Mode mode = getMode(stack);
+        setMode(stack, Mode.values()[(mode.ordinal() + 1) % Mode.values().length]);
+        sendMsg("Mode set to " + getMode(stack));
     }
 
     private BoundingBox getBoundingBox(Mode mode, BlockPosition pos1, BlockPosition pos2, boolean visual){
@@ -367,5 +368,9 @@ public class SpatialManipulator implements IModItem {
 
     public static String nanoToSec(long nano) {
         return String.format("%.2f", nano / 1e+9);
+    }
+
+    public boolean isPasting(ItemStack stack){
+        return getMode(stack) == Mode.PASTE && clipboard.get() != null && dataTag.getPosition(stack, "pos1") != null;
     }
 }

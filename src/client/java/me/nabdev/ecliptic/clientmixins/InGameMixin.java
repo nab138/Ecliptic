@@ -122,6 +122,17 @@ public abstract class InGameMixin extends GameState implements InGameAccessor {
         BoundingBoxUtils.drawBB(ecliptic$sr2, bb, mode.getFillColor(), mode.getBorderColor());
     }
 
+    @Inject(method = "render", at = @At(value = "INVOKE", target = "Lcom/badlogic/gdx/Input;setCursorCatched(Z)V", shift = At.Shift.AFTER), cancellable = true)
+    public void stopChat(CallbackInfo ci) {
+        ItemStack selected = UI.hotbar.getSelectedItemStack();
+        if(selected == null || selected.getItem() == null) return;
+        if(selected.getItem() instanceof SpatialManipulator manipulator){
+            if(manipulator.isPasting(selected)) {
+                ci.cancel();
+            }
+        }
+    }
+
 
     @Unique
     @Override
